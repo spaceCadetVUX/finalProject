@@ -251,3 +251,19 @@ devices             → id, name, location, token, last_ping, ...
 ---
 
 *Tài liệu này là cơ sở để triển khai từng phần theo yêu cầu. Các mục có thể điều chỉnh theo tiến độ và phản hồi thực tế.*
+
+## SƠ ĐỒ CHỨC NĂNG
+![alt text](diagram/sodochucnang1.png)
+![alt text](diagram/sodochucnag2.png)
+
+## SƠ ĐỒ USECASE
+![alt text](diagram/usecase.png)
+
+##  SEQUENCE
+![alt text](diagram/sequence_diagram_diem_danh.svg)
+
+##  activity
+![alt text](diagram/activity_diagram_diem_danh.svg)
+
+##  CLASS
+![alt text](diagram/class_diagram.svg)

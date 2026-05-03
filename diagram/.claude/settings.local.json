@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -E '\\\\.\\(py|js|ts|tsx|jsx|java|cpp|c|go|rs|rb|php\\)$')",
+      "Bash(file /c/Users/vusu3/Desktop/final/finalProject/diagram/*)"
+    ]
+  }
+}

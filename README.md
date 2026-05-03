@@ -80,99 +80,101 @@
 ## 4. Các Module Chức Năng
 
 ### 4.1 Dashboard (Trang Tổng Quan)
-- Thống kê tổng số người, số lớp, số điểm danh trong ngày
-- Biểu đồ điểm danh theo tuần/tháng
-- Danh sách điểm danh gần đây (real-time)
-- Cảnh báo: thiết bị Pi offline, tỉ lệ vắng cao
+- Thống kê tổng số nhân viên, số phòng ban, số lượt chấm công trong ngày
+- Biểu đồ chấm công theo tuần/tháng
+- Danh sách check-in/check-out gần đây (real-time)
+- Cảnh báo: thiết bị Pi offline, nhân viên chưa check-in, tỉ lệ vắng cao
 
-### 4.2 Quản Lý Người Dùng
-- **CRUD:** Thêm, sửa, xóa sinh viên / nhân viên
-- **Upload ảnh khuôn mặt:** Tải lên 1 hoặc nhiều ảnh, hệ thống tự mã hóa face encoding
+### 4.2 Quản Lý Nhân Viên
+- **CRUD:** Thêm, sửa, xóa nhân viên (soft delete — không mất dữ liệu chấm công)
+- **Upload ảnh khuôn mặt:** Tải lên ảnh qua web, server tự mã hóa face encoding
 - **Import từ Excel/CSV:** Nhập hàng loạt
-- **Tìm kiếm & lọc:** Theo tên, mã số, lớp, trạng thái
+- **Tìm kiếm & lọc:** Theo tên, mã nhân viên, phòng ban, trạng thái
 
-### 4.3 Quản Lý Lớp / Ca Làm Việc
-- Tạo, sửa, xóa lớp học hoặc ca làm việc
-- Gán danh sách sinh viên vào lớp
-- Thiết lập lịch học (ngày, giờ bắt đầu, giờ kết thúc)
-- Gán thiết bị Pi cho từng phòng/lớp
+### 4.3 Quản Lý Phòng Ban
+- Tạo, sửa, xóa phòng ban
+- Gán nhân viên vào phòng ban (mỗi nhân viên thuộc 1 phòng ban)
+- Thiết lập giờ làm việc riêng: giờ vào (`check_in_time`), giờ ra (`check_out_time`), biên độ trễ (`late_tolerance` phút)
+- Gán quản lý phòng ban
 
-### 4.4 Quản Lý Phiên Điểm Danh
-- Tạo phiên điểm danh thủ công hoặc tự động theo lịch
-- Xem trạng thái điểm danh theo thời gian thực
-- Override thủ công: đánh dấu có mặt / vắng mặt / trễ
-- Ghi chú lý do vắng mặt
-
-### 4.5 Lịch Sử Điểm Danh
+### 4.4 Chấm Công & Lịch Sử
 - Xem lịch sử theo ngày, tuần, tháng
-- Lọc theo: người, lớp, trạng thái (có mặt / vắng / trễ)
-- Xem chi tiết: thời gian nhận diện, độ chính xác, ảnh chụp lúc điểm danh
+- Lọc theo: nhân viên, phòng ban, trạng thái (đúng giờ / trễ / về sớm / vắng / nghỉ phép)
+- Xem chi tiết: giờ check-in, giờ check-out, độ chính xác nhận diện, ảnh chụp
+- Override thủ công: Admin/Manager sửa trạng thái, ghi chú lý do
 - Xuất dữ liệu: Excel, PDF, CSV
 
-### 4.6 Báo Cáo & Thống Kê
-- Tỉ lệ điểm danh theo từng người / lớp / khoảng thời gian
-- Xếp hạng tỉ lệ vắng mặt
-- Báo cáo tổng kết học kỳ / tháng
+### 4.5 Báo Cáo & Thống Kê
+- Tỉ lệ chấm công theo từng nhân viên / phòng ban / khoảng thời gian
+- Xếp hạng tỉ lệ vắng mặt, đi trễ
+- Báo cáo tổng kết tháng
 - Gửi báo cáo qua email tự động (Queue)
 
-### 4.7 Quản Lý Thiết Bị Pi
-- Danh sách thiết bị đăng ký (tên, IP, vị trí)
+### 4.6 Quản Lý Thiết Bị Pi
+- Thông tin thiết bị (tên, vị trí)
 - Trạng thái online/offline (heartbeat API)
-- Log nhận diện từ từng thiết bị
-- Đồng bộ face encodings xuống Pi
+- Log nhận diện từ thiết bị
+- Đồng bộ face encodings xuống Pi (delta sync theo `updated_since`)
 
-### 4.8 Phân Quyền (Role & Permission)
+### 4.7 Phân Quyền (Role & Permission)
 | Role | Quyền |
 |---|---|
 | Super Admin | Toàn quyền hệ thống |
-| Admin | Quản lý người dùng, lớp, thiết bị |
-| Giáo viên | Xem & override điểm danh lớp của mình |
-| Học sinh | Xem lịch sử điểm danh cá nhân |
+| Admin (HR) | Quản lý nhân viên, phòng ban, thiết bị, xem tất cả chấm công |
+| Manager | Xem & override chấm công phòng ban của mình |
+| Employee | Xem lịch sử chấm công cá nhân |
 
 ---
 
 ## 5. Luồng Hoạt Động Chính
 
-### 5.1 Luồng Điểm Danh Tự Động
+### 5.1 Luồng Check-in / Check-out Tự Động
 
 ```
-[Camera Pi4] → Chụp frame liên tục
+[Camera Pi4] → Chụp frame liên tục (resize 1/4 để tăng tốc)
       ↓
 [Python] → Phát hiện khuôn mặt (face_detection)
       ↓
-[Python] → So sánh face encoding với database cục bộ
+[Python] → So sánh face encoding với danh sách cục bộ
       ↓
-[Nhận diện thành công] → POST /api/attendance với {user_id, session_id, confidence, image}
+[Nhận diện thành công, confidence ≥ 85%]
       ↓
-[Laravel API] → Xác thực token Pi → Lưu DB → Broadcast WebSocket
+[Python] → Kiểm tra cooldown: cùng user_id không ghi 2 lần trong 5 phút
+      ↓
+[Python] → POST /api/attendance với {user_id, type (check_in|check_out), confidence, image}
+      ↓
+[Laravel API] → Xác thực token Pi → Xác định trạng thái (đúng giờ/trễ/về sớm)
+               dựa vào giờ làm việc của phòng ban → Lưu DB → Broadcast WebSocket
       ↓
 [Web Client] → Cập nhật real-time không cần refresh
 ```
 
-### 5.2 Luồng Thêm Người Mới Kèm Ảnh
+### 5.2 Luồng Thêm Nhân Viên Kèm Ảnh
 
 ```
 [Admin Web] → Upload ảnh khuôn mặt
       ↓
-[Laravel] → Lưu ảnh → Gọi Python service mã hóa face encoding
+[Laravel] → Lưu ảnh → Dispatch Queue Job (không block request)
       ↓
-[Python service] → Trả về encoding vector (128 dimensions)
+[Queue Worker] → Gọi Python script mã hóa face encoding
+      ↓
+[Python script] → Trả về encoding vector (128 chiều)
       ↓
 [Laravel] → Lưu encoding vào DB
       ↓
-[Sync Job] → Đẩy encoding mới xuống tất cả thiết bị Pi qua API
+[Pi lần sau GET /api/encodings?updated_since=...] → Tải xuống encoding mới
 ```
 
 ### 5.3 Luồng Offline (Mất kết nối mạng)
 
 ```
-[Pi4 mất mạng] → Tiếp tục nhận diện
+[Pi4 mất mạng] → Tiếp tục nhận diện bình thường
       ↓
 [Python] → Lưu kết quả vào SQLite local
       ↓
-[Khi có mạng trở lại] → Sync toàn bộ dữ liệu tồn đọng lên server
+[Khi có mạng trở lại] → POST /api/attendance/batch
       ↓
-[Laravel] → Xử lý duplicate, lưu DB, cập nhật UI
+[Laravel] → Xử lý duplicate theo (user_id + work_date + type), lưu DB, cập nhật UI
 ```
 
 ---
@@ -180,13 +182,31 @@
 ## 6. Thiết Kế Cơ Sở Dữ Liệu (Sơ lược)
 
 ```
-users               → id, name, code, role, avatar, class_id, ...
-face_encodings      → id, user_id, encoding (JSON/BLOB), created_at
-classes             → id, name, description, teacher_id, schedule, ...
-attendance_sessions → id, class_id, device_id, started_at, ended_at, ...
-attendances         → id, session_id, user_id, status, confidence, image, checked_at
-devices             → id, name, location, token, last_ping, ...
+users            → id, name, email, code, password, role, department_id (FK),
+                   avatar, created_at, updated_at, deleted_at
+
+departments      → id, name, description, manager_id (FK → users),
+                   check_in_time, check_out_time, late_tolerance (phút),
+                   created_at, updated_at
+
+face_encodings   → id, user_id (FK), encoding (JSON), image_path, created_at
+
+attendances      → id, user_id (FK), device_id (FK), work_date,
+                   check_in_at, check_in_confidence, check_in_image,
+                   check_out_at, check_out_confidence, check_out_image,
+                   status (present|late|early_leave|absent|leave),
+                   note, created_at, updated_at
+
+devices          → id, name, location, token, last_ping,
+                   status (online|offline), created_at, updated_at
 ```
+
+**Lưu ý thiết kế:**
+- `users.deleted_at`: soft delete — xóa nhân viên không mất lịch sử chấm công
+- `departments.check_in_time / check_out_time`: mỗi phòng ban có giờ làm riêng
+- `departments.late_tolerance`: biên độ trễ (ví dụ 15 phút), server tự tính status
+- `attendances.work_date`: unique per (user_id, work_date) — 1 nhân viên 1 bản ghi/ngày
+- `attendances` có cả check-in và check-out trong cùng 1 record
 
 ---
 
@@ -195,10 +215,21 @@ devices             → id, name, location, token, last_ping, ...
 | Method | Endpoint | Mô tả |
 |---|---|---|
 | POST | `/api/auth/device` | Pi đăng nhập lấy token |
-| GET | `/api/encodings` | Pi tải face encodings mới nhất |
-| POST | `/api/attendance` | Pi gửi kết quả điểm danh |
+| GET | `/api/encodings?updated_since={timestamp}` | Pi tải face encodings mới (delta sync) |
+| POST | `/api/attendance` | Pi gửi 1 lượt check-in hoặc check-out |
 | POST | `/api/device/ping` | Heartbeat kiểm tra online |
 | POST | `/api/attendance/batch` | Sync hàng loạt khi offline |
+
+**Body của `POST /api/attendance`:**
+```json
+{
+  "user_id": 5,
+  "type": "check_in",
+  "confidence": 0.92,
+  "image": "<base64>",
+  "recorded_at": "2025-05-03T08:05:00"
+}
+```
 
 ---
 

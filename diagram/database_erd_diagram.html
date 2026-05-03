@@ -21,9 +21,24 @@ const diagram = `erDiagram
     string name
     string email
     string code
+    string password
     enum role
+    bigint department_id FK
     string avatar
     timestamp created_at
+    timestamp updated_at
+    timestamp deleted_at
+  }
+  DEPARTMENTS {
+    bigint id PK
+    string name
+    string description
+    bigint manager_id FK
+    time check_in_time
+    time check_out_time
+    int late_tolerance
+    timestamp created_at
+    timestamp updated_at
   }
   FACE_ENCODINGS {
     bigint id PK
@@ -32,36 +47,21 @@ const diagram = `erDiagram
     string image_path
     timestamp created_at
   }
-  CLASSES {
-    bigint id PK
-    string name
-    bigint teacher_id FK
-    bigint device_id FK
-    json schedule
-    timestamp created_at
-  }
-  CLASS_USER {
-    bigint class_id FK
-    bigint user_id FK
-    timestamp enrolled_at
-  }
-  ATTENDANCE_SESSIONS {
-    bigint id PK
-    bigint class_id FK
-    bigint device_id FK
-    timestamp started_at
-    timestamp ended_at
-    enum status
-  }
   ATTENDANCES {
     bigint id PK
-    bigint session_id FK
     bigint user_id FK
+    bigint device_id FK
+    date work_date
+    timestamp check_in_at
+    float check_in_confidence
+    string check_in_image
+    timestamp check_out_at
+    float check_out_confidence
+    string check_out_image
     enum status
-    float confidence
-    string image_path
-    timestamp checked_at
     string note
+    timestamp created_at
+    timestamp updated_at
   }
   DEVICES {
     bigint id PK
@@ -70,16 +70,15 @@ const diagram = `erDiagram
     string token
     timestamp last_ping
     enum status
+    timestamp created_at
+    timestamp updated_at
   }
 
-  USERS ||--o{ FACE_ENCODINGS : "has"
-  USERS ||--o{ CLASS_USER : "enrolls"
-  CLASSES ||--o{ CLASS_USER : "contains"
-  CLASSES ||--o{ ATTENDANCE_SESSIONS : "has"
-  CLASSES }o--|| DEVICES : "uses"
-  ATTENDANCE_SESSIONS ||--o{ ATTENDANCES : "records"
-  ATTENDANCE_SESSIONS }o--|| DEVICES : "via"
-  USERS ||--o{ ATTENDANCES : "tracked by"
+  USERS }o--|| DEPARTMENTS : "thuoc"
+  DEPARTMENTS ||--o| USERS : "quan ly boi"
+  USERS ||--o{ FACE_ENCODINGS : "co"
+  USERS ||--o{ ATTENDANCES : "co"
+  DEVICES ||--o{ ATTENDANCES : "ghi nhan"
 `;
 const { svg } = await mermaid.render('erd-svg', diagram);
 document.getElementById('erd').innerHTML = svg;

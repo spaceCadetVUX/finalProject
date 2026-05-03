@@ -17,6 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'device.token' => \App\Http\Middleware\DeviceTokenMiddleware::class,
+            'role'         => \App\Http\Middleware\RoleMiddleware::class,
         ]);
     })
     ->withSchedule(function (Schedule $schedule): void {

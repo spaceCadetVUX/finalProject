@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -E \"\\\\$[a-zA-Z_]+\" \"/c/Users/vusu3/Desktop/final/finalProject/laravel/dashboard/resources/views/attendances/show.blade.php\")",
+      "Bash(grep -oE \"\\\\\\\\\\\\$[a-zA-Z_][a-zA-Z0-9_]*\")",
+      "Bash(grep -E \"\\\\$[a-zA-Z_]+\" \"/c/Users/vusu3/Desktop/final/finalProject/laravel/dashboard/resources/views/reports/index.blade.php\")"
+    ]
+  }
+}

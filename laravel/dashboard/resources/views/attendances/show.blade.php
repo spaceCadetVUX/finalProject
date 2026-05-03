@@ -97,7 +97,8 @@ $statusBadge = [
     </div>
     @endif
 
-    {{-- Override Form --}}
+    {{-- Override Form: admin + manager only --}}
+    @if(in_array(auth()->user()->role, ['super_admin', 'admin', 'manager']))
     <div class="bg-white rounded-xl shadow-sm p-5">
         <div class="text-sm font-medium text-gray-700 mb-4">Điều chỉnh thủ công</div>
 
@@ -139,6 +140,7 @@ $statusBadge = [
             </div>
         </form>
     </div>
+    @endif
 
 </div>
 @endsection

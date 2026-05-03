@@ -5,7 +5,9 @@
       "Bash(file /c/Users/vusu3/Desktop/final/finalProject/diagram/*)",
       "Bash(icacls \"C:\\\\Users\\\\vusu3\\\\Desktop\\\\final\\\\finalProject\\\\laravel\\\\dashboard\\\\bootstrap\\\\cache\" /grant \"%USERNAME%:F\" /T)",
       "PowerShell(icacls \"C:\\\\Users\\\\vusu3\\\\Desktop\\\\final\\\\finalProject\\\\laravel\\\\dashboard\\\\bootstrap\\\\cache\" /grant \"${env:USERNAME}:\\(F\\)\" /T)",
-      "Bash(php artisan *)"
+      "Bash(php artisan *)",
+      "Read(//c/Users/vusu3/Desktop/final/finalProject/laravel/dashboard/**)",
+      "Bash(composer require *)"
     ]
   }
 }

@@ -70,6 +70,7 @@ $statusBadge = [
         @endif
     </div>
 
+    <div class="overflow-x-auto">
     <table class="w-full text-sm">
         <thead class="bg-gray-50 border-b">
             <tr>
@@ -139,6 +140,7 @@ $statusBadge = [
             @endforelse
         </tbody>
     </table>
+    </div>{{-- /overflow-x-auto --}}
     <div class="px-4 py-3 border-t">{{ $attendances->links() }}</div>
 </div>
 @endsection

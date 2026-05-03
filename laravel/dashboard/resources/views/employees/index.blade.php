@@ -8,7 +8,7 @@
         <input type="text" name="search" value="{{ request('search') }}"
                placeholder="Tìm tên, mã, email..."
                class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
-        <select name="department_id" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        <select name="department_id" class="border border-gray-300 rounded-lg pl-3 pr-10 py-2 text-sm">
             <option value="">Tất cả phòng ban</option>
             @foreach($departments as $dept)
                 <option value="{{ $dept->id }}" {{ request('department_id') == $dept->id ? 'selected' : '' }}>
@@ -16,7 +16,7 @@
                 </option>
             @endforeach
         </select>
-        <select name="role" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        <select name="role" class="border border-gray-300 rounded-lg pl-3 pr-10 py-2 text-sm">
             <option value="">Tất cả role</option>
             <option value="admin" {{ request('role') == 'admin' ? 'selected' : '' }}>Admin</option>
             <option value="manager" {{ request('role') == 'manager' ? 'selected' : '' }}>Manager</option>

@@ -32,7 +32,7 @@ $statusBadge = [
                placeholder="Tìm tên, mã nhân viên..."
                class="border border-gray-300 rounded-lg px-3 py-2 text-sm w-52 focus:ring-2 focus:ring-blue-500 focus:outline-none">
 
-        <select name="department_id" class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        <select name="department_id" class="border border-gray-300 rounded-lg pl-3 pr-10 py-2 text-sm">
             <option value="">Tất cả phòng ban</option>
             @foreach($departments as $dept)
                 <option value="{{ $dept->id }}" {{ request('department_id') == $dept->id ? 'selected' : '' }}>
@@ -42,7 +42,7 @@ $statusBadge = [
         </select>
 
         <select name="status" onchange="this.form.submit()"
-                class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                class="border border-gray-300 rounded-lg pl-3 pr-10 py-2 text-sm">
             <option value="">Tất cả trạng thái</option>
             @foreach($statusLabel as $val => $label)
                 <option value="{{ $val }}" {{ request('status') == $val ? 'selected' : '' }}>{{ $label }}</option>

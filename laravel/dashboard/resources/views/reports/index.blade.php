@@ -12,7 +12,7 @@
                class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
 
         <select name="department_id" onchange="this.form.submit()"
-                class="border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                class="border border-gray-300 rounded-lg pl-3 pr-10 py-2 text-sm">
             <option value="">Tất cả phòng ban</option>
             @foreach($departments as $dept)
                 <option value="{{ $dept->id }}" {{ request('department_id') == $dept->id ? 'selected' : '' }}>

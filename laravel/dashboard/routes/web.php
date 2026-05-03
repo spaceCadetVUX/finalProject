@@ -12,8 +12,8 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', fn() => redirect()->route('dashboard'));
 
 Route::middleware(['auth'])->group(function () {
-    // Dashboard
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    // Dashboard — placeholder đến Sprint 5
+    Route::get('/dashboard', fn() => view('dashboard'))->name('dashboard');
 
     // Nhân viên
     Route::resource('employees', EmployeeController::class);

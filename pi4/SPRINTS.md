@@ -6,18 +6,51 @@
 
 ---
 
+## Kiến Trúc Tổng Quan
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        RASPBERRY PI 4                           │
+│                                                                 │
+│   Camera  →  face_recognition  →  So khớp encoding  →  API     │
+│                                        ↕                       │
+│                               face_encodings cache             │
+│                               (SQLite local buffer)            │
+└─────────────────────────┬───────────────────────────────────────┘
+                          │  HTTP  (Bearer Token)
+                          ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     LARAVEL SERVER                              │
+│                                                                 │
+│   /api/auth/device   →  Đăng ký online (bắt buộc khi boot)     │
+│   /api/encodings     →  Trả face encoding (delta sync)         │
+│   /api/attendance    →  Ghi nhận chấm công                     │
+│   /api/attendance/batch → Gửi batch offline (max 500 records)  │
+│   /api/device/ping   →  Heartbeat (online nếu < 5 phút)        │
+│                                                                 │
+│   Dashboard (Blade) ←→  DB (SQLite/MySQL)                       │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
 ## Sprint 1 — Cài Đặt & Test Cơ Bản
 
-### 1.1 Môi trường
-- [ ] Python 3.9+ đã cài
-- [ ] Tạo và kích hoạt virtual environment
-- [ ] Chạy `pip install -r requirements.txt` thành công
-- [ ] Không lỗi khi import `face_recognition`, `cv2`, `requests`, `PyQt5`
+### 1.1 Môi trường ✅
+- [x] Python 3.13.5 đã cài (aarch64)
+- [x] Tạo và kích hoạt virtual environment (`--system-site-packages` cho PyQt5)
+- [x] Chạy `pip install -r requirements.txt` thành công (piwheels pre-built wheels)
+- [x] Không lỗi khi import `face_recognition`, `cv2`, `requests`, `PyQt5`
+
+> **Ghi chú Pi OS Trixie + Python 3.13:**
+> - `numpy>=2.0.0` (không dùng 1.26.x)
+> - `dlib 20.0.1` từ piwheels (không cần compile)
+> - Venv cần flag `--system-site-packages` để dùng `python3-pyqt5` từ apt
 
 ### 1.2 Cấu hình
 - [ ] Copy `.env.example` → `.env`
-- [ ] Điền `SERVER_URL` (URL Laravel đang chạy)
-- [ ] Điền `DEVICE_TOKEN` (token lấy từ DB Laravel)
+- [ ] Điền `SERVER_URL` (URL Laravel đang chạy, VD: `http://192.168.1.100:8000`)
+- [ ] Điền `DEVICE_TOKEN` (token lấy từ Dashboard → Thiết Bị → Thêm → Copy token)
 - [ ] Điền `CAMERA_INDEX` đúng với thiết bị
 
 ### 1.3 Test Camera
@@ -75,32 +108,65 @@ python main.py
 
 ## Sprint 3 — Kết Nối API Laravel
 
-### 3.1 Test kết nối server
-- [ ] Laravel đang chạy trên cùng mạng LAN
-- [ ] Ping đến `SERVER_URL` thành công
-- [ ] Lấy token từ bảng `devices` trong DB Laravel
-- [ ] Điền token vào `.env`
+> **Thứ tự bắt buộc khi boot:** `auth/device` → `encodings` → vòng lặp chính
 
-### 3.2 Auth device
-- [ ] Test `POST /api/auth/device` trả về 200
-- [ ] `api_client.py` gọi thành công, nhận device_id
+### 3.1 Tạo thiết bị trên Dashboard
+- [ ] Đăng nhập với role **admin** hoặc **super_admin**
+- [ ] Vào **Thiết Bị** → **Thêm thiết bị mới**
+- [ ] Điền tên và vị trí → nhấn **Thêm thiết bị**
+- [ ] **Sao chép token ngay lập tức** — chỉ hiển thị một lần
 
-### 3.3 Fetch encodings từ server
+### 3.2 Auth device khi boot (bước 1)
+- [ ] Test `POST /api/auth/device` với header `Authorization: Bearer <token>`
+- [ ] Server trả về `{id, name, location, status}` và set `device.status = "online"`
+- [ ] `api_client.py` gọi thành công, lưu `device_id` trả về
+- [ ] Tích hợp vào `main()`: gọi auth trước khi fetch encodings
+
+```json
+// Response
+{ "id": 1, "name": "Pi4 - Cổng Chính", "location": "Lobby", "status": "online" }
+```
+
+### 3.3 Fetch encodings từ server (bước 2)
 - [ ] `GET /api/encodings` trả về JSON đúng format
-- [ ] Test delta sync: `GET /api/encodings?updated_since=<ts>` chỉ trả encoding mới
-- [ ] Chạy main.py → nhận diện từ API (không cần `encodings.json`)
+- [ ] Mỗi record có dạng: `{id, user_id, name, code, encoding: [128 float]}`
+- [ ] Test delta sync: `GET /api/encodings?updated_since=<unix_ts>` chỉ trả encoding mới
+- [ ] Chạy `main.py` → nhận diện từ API (không cần `encodings.json`)
 
 ### 3.4 Gửi attendance lên server
-- [ ] `POST /api/attendance` với payload mẫu → DB Laravel có record
+- [ ] `POST /api/attendance` với payload:
+  ```json
+  {
+    "user_id":     12,
+    "type":        "check_in",
+    "confidence":  0.87,
+    "recorded_at": "2025-05-03 08:01:00",
+    "image":       "<base64 JPEG hoặc null>"
+  }
+  ```
+- [ ] Server response `201`:
+  ```json
+  { "id": 99, "work_date": "2025-05-03", "status": "present" }
+  ```
+  - `status` có thể là: `present` / `late` / `early_leave` / `absent`
+  - Server dùng `firstOrCreate(user_id, work_date)` → check-in thứ 2 trong ngày bị bỏ qua
 - [ ] Ảnh lưu đúng vào `storage/app/attendance/`
+- [ ] `api_client.post_attendance()` trả về `status` từ response để UI hiển thị
 
-### 3.5 Heartbeat ping
+### 3.5 Gửi batch offline
+- [ ] `POST /api/attendance/batch` với body `{"records": [...]}`
+- [ ] Giới hạn tối đa **500 records** mỗi request
+- [ ] Response: `{"saved": N, "skipped": N, "errors": {}}`
+
+### 3.6 Heartbeat ping
 - [ ] `POST /api/device/ping` → device status = `online` trong DB
-- [ ] Ping tự động mỗi `PING_INTERVAL_SECONDS` giây
+- [ ] Response: `{"message": "pong", "server_ts": <unix_ts>}`
+- [ ] Pi được coi là online nếu `last_ping` trong vòng **5 phút** gần nhất
+- [ ] Ping tự động mỗi `PING_INTERVAL_SECONDS` giây (mặc định 60)
 
-### 3.6 Tích hợp vào main.py
-- [ ] Khi khởi động: fetch encodings từ server, nếu lỗi → load từ file local
-- [ ] Mỗi nhận diện thành công: gửi API → nếu fail → lưu SQLite
+### 3.7 Tích hợp vào main.py
+- [ ] Khi khởi động: auth device → fetch encodings từ server → nếu lỗi load từ SQLite local
+- [ ] Mỗi nhận diện thành công: gửi API → lấy `status` response → nếu fail lưu SQLite
 - [ ] Mỗi `PING_INTERVAL_SECONDS`: ping + sync pending + delta fetch encoding
 
 ---
@@ -113,11 +179,11 @@ python main.py
 
 ### 4.2 Sync khi có mạng trở lại
 - [ ] Pi tự phát hiện mạng khi ping thành công
-- [ ] `sync_manager.sync_pending()` gửi `POST /api/attendance/batch`
+- [ ] `sync_manager.sync_pending()` gửi `POST /api/attendance/batch` (tối đa 500/lần)
 - [ ] Records được đánh dấu `synced=1`
 
 ### 4.3 Xử lý duplicate
-- [ ] Gửi cùng 1 record 2 lần → Laravel chỉ lưu 1 lần (unique constraint)
+- [ ] Gửi cùng 1 record 2 lần → Laravel chỉ lưu 1 lần (`firstOrCreate` unique constraint)
 
 ### 4.4 Delta sync encoding khi reconnect
 - [ ] Sau khi reconnect, Pi tải encoding mới theo `updated_since`
@@ -146,23 +212,29 @@ python main.py
 - [ ] Dòng chữ nhỏ: `"Approach camera or tap to check in"`
 - [ ] Icon Settings góc dưới phải để vào Settings screen
 - [ ] Camera chạy ở background ở low FPS (1 FPS) để detect motion/face
+- [ ] Badge `OFFLINE` góc trên phải khi mất kết nối server
 
 ### 5.3 Active Screen (màn hình điểm danh)
 Layout:
 ```
 ┌─────────────────┬──────────────────────────────────┐
-│                 │  ✓ CHECK IN                       │
+│                 │  ✓ CHECK IN  ·  PRESENT           │
 │  CAMERA FEED    │  ─────────────────────────────── │
-│  (live video)   │  John Doe                         │
-│  640px wide     │  EMP-001  |  Engineering          │
+│  (live video)   │  Nguyễn Văn A                     │
+│  640px wide     │  NV001  |  Engineering            │
 │                 │  08:02 AM  Mon 03 May 2026        │
 │  [face bbox]    │                                   │
 │                 │  [ Next Person ]  (button)        │
 └─────────────────┴──────────────────────────────────┘
 ```
 - [ ] Camera feed chiếm 1/3 trái, full height
-- [ ] Vẽ bounding box xanh (recognized) / đỏ (unknown) lên camera feed
-- [ ] Phần phải 2/3: hiện tên, mã NV, phòng ban, loại (CHECK IN / CHECK OUT), giờ
+- [ ] Bounding box **xanh** khi nhận diện được / **đỏ** khi unknown
+- [ ] Phần phải 2/3: hiện tên, mã NV (`code`), phòng ban, loại (CHECK IN / CHECK OUT), giờ
+- [ ] **Hiển thị `status` từ server response:**
+  - `present` → badge xanh **PRESENT**
+  - `late` → badge vàng **LATE**
+  - `early_leave` → badge cam **EARLY LEAVE**
+  - Offline (không có response) → badge xám **SAVED OFFLINE**
 - [ ] Animation fade-in khi nhận diện thành công
 - [ ] Sau 30 giây tự reset về trạng thái chờ nhận diện tiếp
 - [ ] Nút `[ Next Person ]` để reset ngay lập tức
@@ -183,17 +255,17 @@ Layout:
 ### 5.5 Settings Screen
 - [ ] Mở bằng tap icon Settings từ Idle screen
 - [ ] Fields:
-  - `Server URL` (text input)
+  - `Server URL` (text input, VD: `http://192.168.1.100:8000`)
   - `Device Token` (text input, masked)
   - `Camera Index` (số)
   - `Min Confidence` (slider 0.5–0.95)
   - `Cooldown (seconds)` (số)
 - [ ] Nút `[ Save ]` → ghi vào `.env` → restart config
-- [ ] Nút `[ Test Connection ]` → ping server → hiện kết quả
+- [ ] Nút `[ Test Connection ]` → gọi `POST /api/auth/device` → hiện kết quả
 - [ ] Nút `[ Back ]` → quay về Idle
 
 ### 5.6 Thread architecture
-- [ ] `CameraThread(QThread)` — đọc frame, chạy recognition, emit signal
+- [ ] `CameraThread(QThread)` — đọc frame, chạy recognition, emit signal kèm `{user_id, name, code, confidence, status, location}`
 - [ ] `MainWindow` nhận signal → update UI (không block main thread)
 - [ ] `SyncThread(QThread)` — ping + sync offline records định kỳ
 
@@ -241,15 +313,23 @@ DISPLAY_UI=true python main.py
 - [ ] Resize frame xuống 1/2 trước khi detect (đã resize 1/2 trong `face_recognizer.py`)
 - [ ] Chỉ xử lý mỗi `PROCESS_EVERY_N` frame
 - [ ] Idle mode: camera chạy 1 FPS, chỉ tăng khi phát hiện chuyển động
+- [ ] Thêm `time.sleep(0.01)` trong loop để tránh CPU 100% khi không có người
 - [ ] Benchmark FPS trong từng mode
 
-### 7.2 Logging ra file
+### 7.2 NTP Time Sync
+- [ ] Đảm bảo Pi4 và Laravel server dùng cùng timezone
+- [ ] Cài và enable NTP: `sudo timedatectl set-ntp true`
+- [ ] Verify: `timedatectl status` → `System clock synchronized: yes`
+- [ ] Dùng `server_ts` từ `/api/device/ping` response để phát hiện lệch giờ > 60 giây → cảnh báo log
+- [ ] **Quan trọng:** giờ lệch ảnh hưởng trực tiếp tới tính trạng thái `present/late/early_leave`
+
+### 7.3 Logging ra file
 - [ ] Tạo `logger.py` — wrapper quanh `logging` module
-- [ ] Format: `[2026-05-03 08:02:11] [INFO] Check-in: user_id=5, confidence=0.92`
+- [ ] Format: `[2026-05-03 08:02:11] [INFO] Check-in: user_id=5, confidence=0.92, status=present`
 - [ ] Log vào file `attendance.log` + stdout
 - [ ] Rotate log khi > 10MB
 
-### 7.3 Headless mode (không màn hình)
+### 7.4 Headless mode (không màn hình)
 - [ ] Flag `HEADLESS=true` trong `.env`
 - [ ] Khi headless: không khởi động PyQt5, không `cv2.imshow()`
 - [ ] Chỉ chạy recognition loop + API sync
@@ -280,16 +360,65 @@ DISPLAY_UI=true python main.py
 - [ ] `sudo systemctl start attendance`
 - [ ] Kiểm tra: `sudo systemctl status attendance`
 
-### 8.2 Test trên Pi 4 thật
+### 8.2 Checklist phía Server (Laravel)
+- [ ] `php artisan queue:work` đang chạy (hoặc supervisor) — cần cho EncodeFaceJob
+- [ ] `php artisan storage:link` đã chạy — để ảnh chấm công hiển thị trên dashboard
+- [ ] Pi4 có thể reach `SERVER_URL` (kiểm tra firewall / port)
+- [ ] `face_encode_single.py` nằm đúng tại `../pi4/` so với thư mục dashboard
+
+### 8.3 Test trên Pi 4 thật
 - [ ] Copy code lên Pi (git clone hoặc scp)
 - [ ] Cài dependencies trên Pi OS
-- [ ] Mở Settings screen → nhập Server URL + Token → Save
-- [ ] Test flow đầy đủ: Idle → nhận diện → hiện info → reset
+- [ ] Mở Settings screen → nhập Server URL + Token → Save → Test Connection thành công
+- [ ] Test flow đầy đủ: Idle → nhận diện → hiện info + status → reset
 
-### 8.3 Edge cases
+### 8.4 Edge cases
 - [ ] Nhiều khuôn mặt cùng lúc → nhận diện tất cả, hiện lần lượt
 - [ ] Camera bị ngắt → reconnect tự động, hiện thông báo lỗi trên UI
 - [ ] Mất mạng → UI hiện badge `OFFLINE`, vẫn nhận diện và lưu local
+- [ ] Pi reboot → systemd auto-start, load encoding từ SQLite local nếu server chưa kịp lên
+
+---
+
+## Luồng Đăng Ký Khuôn Mặt (Upload từ Dashboard → Pi Sync)
+
+```
+Admin upload ảnh nhân viên (dashboard)
+  │
+  ├─ POST /employees/{id}/face  (multipart/form-data)
+  │
+  ├─ File lưu vào: storage/app/faces/{user_id}/...
+  │
+  ├─ Dispatch EncodeFaceJob (queue)
+  │   └─ Gọi Python: python ../pi4/face_encode_single.py "<path>"
+  │       → Output JSON: {"encoding": [128 float]}
+  │       → Lưu vào bảng face_encodings
+  │
+  └─ Pi tự động tải encoding mới tại lần sync tiếp theo:
+      GET /api/encodings?updated_since=<last_sync_ts>
+```
+
+**Checklist cho flow này:**
+- [ ] `php artisan queue:work` đang chạy trên server
+- [ ] `face_encode_single.py` có quyền execute trên server
+- [ ] Sau khi upload ảnh, đợi ≤ `PING_INTERVAL_SECONDS` để Pi sync encoding mới
+
+---
+
+## Logic Tính Trạng Thái (Server-side)
+
+Server tự động tính `status` dựa trên cấu hình phòng ban:
+
+| Trường hợp | Status |
+|---|---|
+| Check-in ≤ `check_in_time` + `late_tolerance` phút | `present` |
+| Check-in > `check_in_time` + `late_tolerance` phút | `late` |
+| Check-out < `check_out_time` của phòng ban | `early_leave` |
+| Check-out đúng giờ / muộn | Giữ nguyên status check-in |
+| Nhân viên không có phòng ban | Luôn `present` |
+| Không chấm công cả ngày (job 23:59) | `absent` |
+
+Cấu hình `check_in_time`, `check_out_time`, `late_tolerance` được set trong **Phòng Ban** trên dashboard.
 
 ---
 
@@ -315,7 +444,7 @@ pi4/
 ├── main.py                  ← Sprint 3, Sprint 7 (headless flag)
 ├── face_recognizer.py       ← Sprint 2, Sprint 6 (liveness hook)
 ├── camera.py                ← Sprint 1
-├── api_client.py            ← Sprint 3
+├── api_client.py            ← Sprint 3 (thêm auth/device, trả status từ response)
 ├── local_storage.py         ← Sprint 1, Sprint 4
 ├── sync_manager.py          ← Sprint 4
 ├── config.py                ← Sprint 1, Sprint 6 (LIVENESS_THRESHOLD)

@@ -1,8 +1,10 @@
 <?php
 
+use App\Console\Commands\GenerateDailyAbsences;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Console\Scheduling\Schedule;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -16,6 +18,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'device.token' => \App\Http\Middleware\DeviceTokenMiddleware::class,
         ]);
+    })
+    ->withSchedule(function (Schedule $schedule): void {
+        $schedule->command(GenerateDailyAbsences::class)->dailyAt('23:59');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

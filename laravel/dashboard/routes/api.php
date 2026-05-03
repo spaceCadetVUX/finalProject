@@ -8,23 +8,33 @@ use App\Http\Controllers\Api\DevicePingController;
 
 /*
 |--------------------------------------------------------------------------
-| Pi4 Device API Routes
+| Device API — xác thực bằng static token trong bảng devices
+| Header: Authorization: Bearer <device_token>
 |--------------------------------------------------------------------------
-|
-| All routes here are protected by DeviceTokenMiddleware which validates
-| the Bearer token in the Authorization header against the devices table.
-|
 */
-
-// Auth — no middleware, token IS the credential
-Route::post('/auth/device', AuthDeviceController::class);
-
-// Protected routes — require valid device token
 Route::middleware('device.token')->group(function () {
+
+    // Đăng ký online, cập nhật trạng thái thiết bị
+    Route::post('/auth/device', AuthDeviceController::class);
+
+    // Tải xuống face encoding (hỗ trợ delta sync ?updated_since=<unix_ts>)
     Route::get('/encodings', [EncodingController::class, 'index']);
 
+    // Ghi nhận chấm công từ Pi
     Route::post('/attendance', [AttendanceApiController::class, 'store']);
     Route::post('/attendance/batch', [AttendanceApiController::class, 'batch']);
 
+    // Heartbeat — cập nhật last_ping + status=online
     Route::post('/device/ping', [DevicePingController::class, '__invoke']);
+});
+
+/*
+|--------------------------------------------------------------------------
+| Admin/Manager API — xác thực bằng Sanctum session (dùng cho SPA/mobile
+| nếu mở rộng sau này, hiện tại dashboard dùng Blade server-side)
+| Header: Authorization: Bearer <sanctum_token>  hoặc cookie session
+|--------------------------------------------------------------------------
+*/
+Route::middleware('auth:sanctum')->group(function () {
+    // Mở rộng Sprint 6+ nếu cần REST API cho mobile/SPA
 });

@@ -46,12 +46,14 @@
 
 | Thành phần | Công nghệ | Lý do chọn |
 |---|---|---|
-| Framework | Laravel 11 | Quen thuộc, ecosystem phong phú, có Sanctum/Passport cho API auth |
+| Framework | Laravel 11 | Ecosystem phong phú, có Breeze/Sanctum sẵn |
 | Ngôn ngữ | PHP 8.2+ | Hỗ trợ tốt các tính năng OOP hiện đại |
 | Database | MySQL 8.0 | Ổn định, dễ quản lý, phù hợp dữ liệu quan hệ |
-| Queue | Laravel Queue + Redis | Xử lý tác vụ nền (gửi email, sync dữ liệu) |
-| Real-time | Laravel Echo + Pusher/Soketi | Cập nhật điểm danh thời gian thực |
-| Storage | Laravel Storage (local/S3) | Lưu ảnh khuôn mặt |
+| Queue | Laravel Queue (database driver) | Xử lý tác vụ nền — không cần Redis cho basic |
+| Real-time | Polling mỗi 10 giây | Đủ dùng cho ~50 người, không cần WebSocket |
+| Auth Web | Laravel Breeze | Có sẵn login/register, đơn giản |
+| Auth API (Pi) | Laravel Sanctum (token) | Token-based cho thiết bị Pi |
+| Storage | Laravel Storage (local) | Lưu ảnh khuôn mặt trên server |
 
 ### 3.2 Frontend (Giao diện Web)
 
@@ -59,10 +61,10 @@
 |---|---|
 | Template engine | Blade (Laravel) |
 | CSS Framework | TailwindCSS |
-| JS Framework | Alpine.js (tương tác nhẹ) hoặc Vue.js (nếu cần SPA) |
-| Charts | Chart.js hoặc ApexCharts |
+| JS Framework | Alpine.js |
+| Charts | Chart.js |
 | DataTable | DataTables.js |
-| Icons | Heroicons / FontAwesome |
+| Icons | Heroicons |
 
 ### 3.3 Raspberry Pi 4 (Edge Device)
 

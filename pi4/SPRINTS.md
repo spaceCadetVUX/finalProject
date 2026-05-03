@@ -47,28 +47,27 @@
 > - `dlib 20.0.1` từ piwheels (không cần compile)
 > - Venv cần flag `--system-site-packages` để dùng `python3-pyqt5` từ apt
 
-### 1.2 Cấu hình
-- [ ] Copy `.env.example` → `.env`
-- [ ] Điền `SERVER_URL` (URL Laravel đang chạy, VD: `http://192.168.1.100:8000`)
-- [ ] Điền `DEVICE_TOKEN` (token lấy từ Dashboard → Thiết Bị → Thêm → Copy token)
-- [ ] Điền `CAMERA_INDEX` đúng với thiết bị
+### 1.2 Cấu hình ✅
+- [x] Copy `.env.example` → `.env`
+- [x] `SERVER_URL=http://192.168.1.169:8000` (Laravel trên máy Windows, `--host=0.0.0.0`)
+- [x] `DEVICE_TOKEN=pi4-device-token-001`
+- [x] `CAMERA_INDEX=0`
+- [x] Ping `/api/device/ping` trả về `{"message":"pong"}` ✅
 
-### 1.3 Test Camera
-- [ ] Tạo `test_camera.py`
-- [ ] Chạy → cửa sổ hiện video từ webcam
-- [ ] Không bị đen, không bị giật
+### 1.3 Test Camera ✅
+- [x] Tạo `test_camera.py`
+- [x] Camera OK — resolution 640x480, chụp frame lưu `test_frame.jpg` thành công
 
-### 1.4 Test Face Recognition
-- [ ] Tạo thư mục `test_images/` với ≥ 2 ảnh khuôn mặt rõ
-- [ ] Tạo `test_face.py`
-- [ ] Chạy → nhận diện được khuôn mặt, hiển thị tên + confidence %
-- [ ] Confidence > 80% khi soi đúng ảnh đã train
+### 1.4 Test Face Recognition ✅
+- [x] Tạo thư mục `test_images/` với 2 ảnh chụp từ webcam
+- [x] Tạo `test_face.py`
+- [x] Person 1 → Person 1 (100%), Person 2 → Person 2 (100%) ✅
 
-### 1.5 Test SQLite
-- [ ] `local_storage.init_db()` tạo file `.db` thành công
-- [ ] `save_record()` lưu được record
-- [ ] `get_unsynced()` đọc đúng
-- [ ] `mark_synced()` cập nhật đúng flag
+### 1.5 Test SQLite ✅
+- [x] `local_storage.init_db()` tạo file `.db` thành công
+- [x] `save_record()` lưu được record
+- [x] `get_unsynced()` đọc đúng — key là `_local_id` (không phải `id`)
+- [x] `mark_synced()` cập nhật đúng flag, unsynced về 0
 
 ### Lệnh
 ```bash
@@ -426,7 +425,7 @@ Cấu hình `check_in_time`, `check_out_time`, `late_tolerance` được set tro
 
 | Sprint | Nội dung | Trạng thái |
 |---|---|---|
-| Sprint 1 | Cài đặt & Test cơ bản | ⬜ Cần chạy trên Pi |
+| Sprint 1 | Cài đặt & Test cơ bản | ✅ Hoàn thành |
 | Sprint 2 | Nhận diện khuôn mặt cục bộ | ⬜ Cần test thực tế |
 | Sprint 3 | Kết nối API Laravel | ⬜ Cần test thực tế |
 | Sprint 4 | Offline buffer & sync | ⬜ Cần test thực tế |

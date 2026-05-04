@@ -23,18 +23,18 @@ class SettingsScreen(QWidget):
     def _setup_ui(self):
         self.setStyleSheet("background-color: #ffffff; color: #24292f;")
         root = QVBoxLayout(self)
-        root.setContentsMargins(48, 32, 48, 32)
-        root.setSpacing(14)
+        root.setContentsMargins(24, 12, 24, 12)
+        root.setSpacing(6)
 
         # ── Header ────────────────────────────────────────────────────────
         header = QHBoxLayout()
         btn_back = QPushButton("← Quay lại")
-        btn_back.setFixedSize(140, 44)
+        btn_back.setFixedSize(120, 40)
         btn_back.setStyleSheet(self._btn("#f6f8fa", "#24292f"))
         btn_back.clicked.connect(self.back_clicked)
         header.addWidget(btn_back)
         title = QLabel("Cài Đặt")
-        title.setStyleSheet("font-size: 22px; font-weight: bold; color: #24292f;")
+        title.setStyleSheet("font-size: 20px; font-weight: bold; color: #24292f;")
         header.addWidget(title)
         header.addStretch()
         root.addLayout(header)
@@ -50,36 +50,39 @@ class SettingsScreen(QWidget):
 
         # ── Status ────────────────────────────────────────────────────────
         self.status = QLabel()
-        self.status.setStyleSheet("color: #57606a; font-size: 14px;")
+        self.status.setStyleSheet("color: #57606a; font-size: 13px;")
         root.addWidget(self.status)
 
-        # ── Buttons ───────────────────────────────────────────────────────
+        # ── Buttons (1 hàng 3 nút) ────────────────────────────────────────
         btn_row = QHBoxLayout()
+        btn_row.setSpacing(8)
+
         btn_test = QPushButton("Test kết nối")
-        btn_test.setFixedHeight(54)
+        btn_test.setFixedHeight(48)
         btn_test.setStyleSheet(self._btn("#0969da", "white"))
         btn_test.clicked.connect(self._test)
         btn_row.addWidget(btn_test)
 
         btn_save = QPushButton("Lưu")
-        btn_save.setFixedHeight(54)
+        btn_save.setFixedHeight(48)
         btn_save.setStyleSheet(self._btn("#1a7f37", "white"))
         btn_save.clicked.connect(self._save)
         btn_row.addWidget(btn_save)
-        root.addLayout(btn_row)
 
-        btn_add_emp = QPushButton("👤  Thêm nhân viên")
-        btn_add_emp.setFixedHeight(54)
+        btn_add_emp = QPushButton("👤  Thêm NV")
+        btn_add_emp.setFixedHeight(48)
         btn_add_emp.setStyleSheet(self._btn("#f6f8fa", "#24292f"))
         btn_add_emp.clicked.connect(self.add_employee_clicked)
-        root.addWidget(btn_add_emp)
+        btn_row.addWidget(btn_add_emp)
+
+        root.addLayout(btn_row)
 
     def _field(self, parent_layout, label: str, masked=False) -> QLineEdit:
         lbl = QLabel(label)
         lbl.setStyleSheet("color: #57606a; font-size: 13px;")
         parent_layout.addWidget(lbl)
         field = QLineEdit()
-        field.setFixedHeight(46)
+        field.setFixedHeight(40)
         if masked:
             field.setEchoMode(QLineEdit.Password)
         field.setStyleSheet("""

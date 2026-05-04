@@ -1,12 +1,10 @@
-import base64
 import queue
 import threading
 import time
 from datetime import datetime
 
 import cv2
-import numpy as np
-from PyQt5.QtCore import QThread, pyqtSignal
+from PyQt5.QtCore import QThread, QTimer, pyqtSignal
 from PyQt5.QtWidgets import QMainWindow, QStackedWidget
 
 import api_client
@@ -24,29 +22,22 @@ FRAME_INTERVAL = 1 / 20  # cap 20 FPS cho camera feed
 
 
 class CameraThread(QThread):
-    new_frame     = pyqtSignal(object)  # np.ndarray BGR (đã vẽ box)
-    face_detected = pyqtSignal(object)  # dict
+    new_frame         = pyqtSignal(object)  # np.ndarray BGR (đã vẽ box)
+    person_identified = pyqtSignal(object)  # dict: thông tin người nhận ra
+    person_cleared    = pyqtSignal()         # không còn ai được nhận ra
 
     def __init__(self, recognizer: FaceRecognizer):
         super().__init__()
         self.recognizer  = recognizer
         self._running    = True
         self._mode       = "idle"
-        self._cooldown   = {}
-        self._last_faces = []           # cập nhật bởi recognition worker
+        self._last_faces = []
         self._faces_lock = threading.Lock()
         self._rec_queue  = queue.Queue(maxsize=1)
+        self._last_emit  = {}   # user_id → float (thời điểm emit gần nhất)
 
     def set_mode(self, mode: str):
         self._mode = mode
-
-    def _record_type(self, user_id: int) -> str | None:
-        now = time.time()
-        if now - self._cooldown.get(user_id, 0) < COOLDOWN_SECONDS:
-            return None
-        rtype = "check_in" if datetime.now().hour < 12 else "check_out"
-        self._cooldown[user_id] = now
-        return rtype
 
     def _recognition_worker(self):
         """Chạy recognition trong Python thread riêng, không block camera feed."""
@@ -68,22 +59,21 @@ class CameraThread(QThread):
             with self._faces_lock:
                 self._last_faces = faces_info
 
-            for det in detections:
-                if not det["recognized"]:
-                    continue
-                rtype = self._record_type(det["user_id"])
-                if rtype is None:
-                    continue
-                self.face_detected.emit({
-                    "user_id":     det["user_id"],
-                    "name":        det["name"],
-                    "code":        det["code"],
-                    "confidence":  det["confidence"],
-                    "record_type": rtype,
-                    "recorded_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "image_b64":   None,
-                    "location":    det["location"],
-                })
+            recognized = [d for d in detections if d["recognized"]]
+            if recognized:
+                det = recognized[0]
+                uid = det["user_id"]
+                now = time.time()
+                if now - self._last_emit.get(uid, 0) >= 0.5:
+                    self._last_emit[uid] = now
+                    self.person_identified.emit({
+                        "user_id":    det["user_id"],
+                        "name":       det["name"],
+                        "code":       det["code"],
+                        "confidence": det["confidence"],
+                    })
+            else:
+                self.person_cleared.emit()
 
     def run(self):
         worker = threading.Thread(target=self._recognition_worker, daemon=True)
@@ -99,7 +89,6 @@ class CameraThread(QThread):
                 time.sleep(0.1)
                 continue
 
-            # Vẽ box từ kết quả recognition gần nhất (không block)
             with self._faces_lock:
                 faces = list(self._last_faces)
 
@@ -116,14 +105,13 @@ class CameraThread(QThread):
             self.new_frame.emit(annotated)
             frame_count += 1
 
-            # Submit frame cho recognition worker (drop nếu đang bận)
             skip = PROCESS_EVERY_N if self._mode == "active" else PROCESS_EVERY_N * 4
             if frame_count % skip == 0:
                 rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 try:
                     self._rec_queue.put_nowait(rgb)
                 except queue.Full:
-                    pass  # worker vẫn đang xử lý frame trước, bỏ qua
+                    pass
 
             elapsed = time.time() - t0
             sleep = FRAME_INTERVAL - elapsed
@@ -169,8 +157,11 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Attendance")
 
         local_storage.init_db()
-        self.recognizer    = FaceRecognizer()
-        self._session_log  = []  # [{name, code, type, status, time}] trong phiên
+        self.recognizer      = FaceRecognizer()
+        self._session_log    = []   # [{name, code, type, status, time}] trong phiên
+        self._cooldown       = {}   # (user_id, rtype) → float
+        self._current_person = None
+
         try:
             self.recognizer.load_encodings(api_client.fetch_encodings())
         except Exception:
@@ -186,16 +177,22 @@ class MainWindow(QMainWindow):
         self.stack.addWidget(self.active)    # 1
         self.stack.addWidget(self.settings)  # 2
 
+        # Grace-period timer: clear person sau 2s không nhận ra ai
+        self._clear_timer = QTimer(self)
+        self._clear_timer.setSingleShot(True)
+        self._clear_timer.timeout.connect(self._on_person_gone)
+
         self.idle.settings_clicked.connect(lambda: self.stack.setCurrentIndex(2))
         self.idle.screen_tapped.connect(self._on_tap_idle)
-        self.active.next_clicked.connect(self._on_next_person)
+        self.active.record_requested.connect(self._on_record_requested)
         self.active.timed_out.connect(self._show_idle)
         self.settings.back_clicked.connect(self._show_idle)
 
         self.cam_thread = CameraThread(self.recognizer)
         self.cam_thread.new_frame.connect(self.idle.set_frame)
         self.cam_thread.new_frame.connect(self.active.set_frame)
-        self.cam_thread.face_detected.connect(self._on_face_detected)
+        self.cam_thread.person_identified.connect(self._on_person_identified)
+        self.cam_thread.person_cleared.connect(self._on_person_cleared)
         self.cam_thread.start()
 
         self.sync_thread = SyncThread(self.recognizer)
@@ -212,31 +209,51 @@ class MainWindow(QMainWindow):
         self.active.show_waiting()
         self.stack.setCurrentIndex(1)
 
-    def _on_next_person(self):
-        self.active.show_waiting()
-
-    def _on_face_detected(self, data: dict):
+    def _on_person_identified(self, data: dict):
+        self._clear_timer.stop()
+        self._current_person = data
         if self.stack.currentIndex() != 1:
             self.cam_thread.set_mode("active")
             self.stack.setCurrentIndex(1)
+        self.active.show_person(data)
 
+    def _on_person_cleared(self):
+        self._clear_timer.start(2000)
+
+    def _on_person_gone(self):
+        self._current_person = None
+        if self.stack.currentIndex() == 1:
+            self.active.show_waiting()
+
+    def _on_record_requested(self, rtype: str):
+        person = self._current_person
+        if not person:
+            return
+        uid = person["user_id"]
+        now = time.time()
+        if now - self._cooldown.get((uid, rtype), 0) < COOLDOWN_SECONDS:
+            return
+        self._cooldown[(uid, rtype)] = now
+
+        recorded_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         result = api_client.post_attendance(
-            data["user_id"], data["record_type"], data["confidence"],
-            data["image_b64"], data["recorded_at"],
+            uid, rtype, person["confidence"],
+            None, recorded_at,
         )
         status = result.get("status", "present") if result else "offline"
         if not result:
             local_storage.save_record(
-                data["user_id"], data["record_type"], data["confidence"],
-                data["image_b64"], data["recorded_at"],
+                uid, rtype, person["confidence"],
+                None, recorded_at,
             )
 
+        data = {**person, "record_type": rtype, "recorded_at": recorded_at}
         self._session_log.append({
-            "name":   data.get("name", f"User {data['user_id']}"),
-            "code":   data.get("code", ""),
-            "type":   data["record_type"],
+            "name":   person.get("name", f"User {uid}"),
+            "code":   person.get("code", ""),
+            "type":   rtype,
             "status": status,
-            "time":   data["recorded_at"][11:16],  # HH:MM
+            "time":   recorded_at[11:16],
         })
         self.active.update_log(self._session_log)
         self.idle.update_stats(len(self._session_log))

@@ -1,3 +1,4 @@
+import json
 import face_recognition
 import numpy as np
 
@@ -6,6 +7,12 @@ class FaceRecognizer:
     def __init__(self):
         self._encodings: list[np.ndarray] = []
         self._user_ids:  list[int] = []
+
+    def load_from_file(self, path: str):
+        """Nạp encoding từ file JSON local (dùng khi offline hoàn toàn)."""
+        with open(path) as f:
+            records = json.load(f)
+        self.load_encodings(records)
 
     def load_encodings(self, records: list[dict]):
         """Nạp danh sách encoding từ server vào bộ nhớ."""

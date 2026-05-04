@@ -29,7 +29,8 @@ def fetch_encodings(updated_since: int | None = None) -> list[dict]:
     resp = requests.get(f"{SERVER_URL}/api/encodings", headers=HEADERS,
                         params=params, timeout=TIMEOUT)
     resp.raise_for_status()
-    return resp.json().get("encodings", [])
+    data = resp.json()
+    return data if isinstance(data, list) else data.get("encodings", [])
 
 
 def post_attendance(user_id: int, record_type: str, confidence: float,

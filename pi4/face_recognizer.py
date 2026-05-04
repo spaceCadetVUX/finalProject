@@ -33,8 +33,8 @@ class FaceRecognizer:
         if not self._encodings:
             return []
 
-        # Resize 1/4 để tăng tốc detect, giữ scale để map lại vị trí
-        small = frame_rgb[::2, ::2]
+        # Resize 1/2 để tăng tốc detect — dùng ascontiguousarray vì dlib 20.x yêu cầu C-contiguous
+        small = np.ascontiguousarray(frame_rgb[::2, ::2])
 
         locations = face_recognition.face_locations(small, model="hog")
         if not locations:

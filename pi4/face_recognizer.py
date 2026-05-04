@@ -32,37 +32,44 @@ class FaceRecognizer:
         self._codes.append(record.get("code", ""))
 
     def recognize(self, frame_rgb: np.ndarray, tolerance: float = 0.5) -> list[dict]:
-        """
-        Nhận diện khuôn mặt trong frame.
-        Trả về list [{"user_id": int, "confidence": float, "location": tuple}]
-        """
-        if not self._encodings:
-            return []
+        return [d for d in self.recognize_all(frame_rgb, tolerance) if d["recognized"]]
 
-        # Resize 1/2 để tăng tốc detect — dùng ascontiguousarray vì dlib 20.x yêu cầu C-contiguous
-        small = np.ascontiguousarray(frame_rgb[::2, ::2])
-
+    def recognize_all(self, frame_rgb: np.ndarray, tolerance: float = 0.5) -> list[dict]:
+        """
+        Detect tất cả khuôn mặt, trả về recognized=True/False cho mỗi face.
+        Dùng để vẽ bounding box kể cả khuôn mặt không nhận ra.
+        """
+        small     = np.ascontiguousarray(frame_rgb[::2, ::2])
         locations = face_recognition.face_locations(small, model="hog")
         if not locations:
             return []
 
         encodings = face_recognition.face_encodings(small, locations)
+        results   = []
 
-        results = []
         for enc, loc in zip(encodings, locations):
-            distances = face_recognition.face_distance(self._encodings, enc)
-            best_idx  = int(np.argmin(distances))
-            best_dist = float(distances[best_idx])
+            top, right, bottom, left = [x * 2 for x in loc]
+            base = {"location": (top, right, bottom, left)}
 
-            if best_dist <= tolerance:
-                confidence = round(1.0 - best_dist, 4)
-                top, right, bottom, left = [x * 2 for x in loc]
-                results.append({
-                    "user_id":    self._user_ids[best_idx],
-                    "name":       self._names[best_idx],
-                    "code":       self._codes[best_idx],
-                    "confidence": confidence,
-                    "location":   (top, right, bottom, left),
-                })
+            if self._encodings:
+                distances = face_recognition.face_distance(self._encodings, enc)
+                best_idx  = int(np.argmin(distances))
+                best_dist = float(distances[best_idx])
+                if best_dist <= tolerance:
+                    base.update({
+                        "recognized": True,
+                        "user_id":    self._user_ids[best_idx],
+                        "name":       self._names[best_idx],
+                        "code":       self._codes[best_idx],
+                        "confidence": round(1.0 - best_dist, 4),
+                    })
+                else:
+                    base.update({"recognized": False, "user_id": None,
+                                 "name": "Unknown", "code": "", "confidence": 0.0})
+            else:
+                base.update({"recognized": False, "user_id": None,
+                             "name": "Unknown", "code": "", "confidence": 0.0})
+
+            results.append(base)
 
         return results

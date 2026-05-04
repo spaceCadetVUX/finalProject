@@ -30,6 +30,7 @@ class CameraThread(QThread):
         self._mode        = "idle"
         self._frame_count = 0
         self._cooldown    = {}  # {user_id: last_ts}
+        self._last_faces  = []  # [{location, recognized}] để vẽ box liên tục
 
     def set_mode(self, mode: str):
         self._mode = mode
@@ -50,7 +51,21 @@ class CameraThread(QThread):
                 time.sleep(0.1)
                 continue
 
-            self.new_frame.emit(frame.copy())
+            # Vẽ bounding box từ lần nhận diện trước lên frame
+            annotated = frame.copy()
+            for face in self._last_faces:
+                t, r, b, l = face["location"]
+                color = (0, 180, 0) if face["recognized"] else (0, 0, 210)  # BGR
+                cv2.rectangle(annotated, (l, t), (r, b), color, 2)
+                if face["recognized"]:
+                    label = f"{face.get('name','?')} {face.get('confidence',0):.0%}"
+                    cv2.putText(annotated, label, (l, t - 8),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
+                else:
+                    cv2.putText(annotated, "Unknown", (l, t - 8),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
+
+            self.new_frame.emit(annotated)
             self._frame_count += 1
 
             skip = PROCESS_EVERY_N if self._mode == "active" else PROCESS_EVERY_N * 5
@@ -59,9 +74,17 @@ class CameraThread(QThread):
                 continue
 
             rgb        = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            detections = self.recognizer.recognize(rgb, tolerance=1.0 - MIN_CONFIDENCE)
+            detections = self.recognizer.recognize_all(rgb, tolerance=1.0 - MIN_CONFIDENCE)
+
+            # Cập nhật danh sách faces để vẽ box frame tiếp theo
+            self._last_faces = [{"location": d["location"],
+                                  "recognized": d["recognized"],
+                                  "name": d.get("name", ""),
+                                  "confidence": d.get("confidence", 0)} for d in detections]
 
             for det in detections:
+                if not det["recognized"]:
+                    continue
                 rtype = self._record_type(det["user_id"])
                 if rtype is None:
                     continue

@@ -59,6 +59,14 @@ class IdleScreen(QWidget):
         hint.setStyleSheet("color: #0969da; font-size: 17px;")
         root.addWidget(hint)
 
+        root.addSpacing(12)
+
+        # ── Stats ─────────────────────────────────────────────────────────
+        self.stats_label = QLabel("0 lượt điểm danh hôm nay")
+        self.stats_label.setAlignment(Qt.AlignCenter)
+        self.stats_label.setStyleSheet("color: #57606a; font-size: 14px;")
+        root.addWidget(self.stats_label)
+
         root.addStretch(2)
 
         # ── Bottom bar ────────────────────────────────────────────────────
@@ -108,6 +116,9 @@ class IdleScreen(QWidget):
             self.online_badge.setText("● OFFLINE")
             self.online_badge.setStyleSheet(
                 "color: #cf222e; font-size: 14px; font-weight: bold;")
+
+    def update_stats(self, count: int):
+        self.stats_label.setText(f"{count} lượt điểm danh hôm nay")
 
     def mousePressEvent(self, event):
         self.screen_tapped.emit()

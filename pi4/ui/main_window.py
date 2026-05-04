@@ -169,7 +169,8 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Attendance")
 
         local_storage.init_db()
-        self.recognizer = FaceRecognizer()
+        self.recognizer    = FaceRecognizer()
+        self._session_log  = []  # [{name, code, type, status, time}] trong phiên
         try:
             self.recognizer.load_encodings(api_client.fetch_encodings())
         except Exception:
@@ -230,6 +231,15 @@ class MainWindow(QMainWindow):
                 data["image_b64"], data["recorded_at"],
             )
 
+        self._session_log.append({
+            "name":   data.get("name", f"User {data['user_id']}"),
+            "code":   data.get("code", ""),
+            "type":   data["record_type"],
+            "status": status,
+            "time":   data["recorded_at"][11:16],  # HH:MM
+        })
+        self.active.update_log(self._session_log)
+        self.idle.update_stats(len(self._session_log))
         self.active.show_result(data, status)
 
     def closeEvent(self, event):

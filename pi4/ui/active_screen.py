@@ -5,8 +5,8 @@ from PyQt5.QtGui import QFont, QImage, QPixmap
 from PyQt5.QtWidgets import (QFrame, QHBoxLayout, QLabel, QPushButton,
                               QVBoxLayout, QWidget)
 
-RESET_MS   = 30_000   # 30 giây reset về chờ
-TIMEOUT_MS = 600_000  # 10 phút quay về idle
+RESET_MS   = 30_000
+TIMEOUT_MS = 600_000
 
 STATUS_MAP = {
     "present":     ("#1a7f37", "PRESENT"),
@@ -17,7 +17,6 @@ STATUS_MAP = {
 
 
 def _crop_fill(frame: np.ndarray, target_w: int, target_h: int) -> np.ndarray:
-    """Scale-to-fill + crop center, giữ nguyên tỉ lệ."""
     cam_h, cam_w = frame.shape[:2]
     scale   = max(target_w / cam_w, target_h / cam_h)
     new_w   = int(cam_w * scale)
@@ -55,7 +54,6 @@ class ActiveScreen(QWidget):
         self.cam_label.setStyleSheet("background: #f6f8fa;")
         root.addWidget(self.cam_label)
 
-        # ── Divider ───────────────────────────────────────────────────────
         div = QFrame()
         div.setFrameShape(QFrame.VLine)
         div.setFixedWidth(1)
@@ -66,17 +64,18 @@ class ActiveScreen(QWidget):
         right = QWidget()
         right.setStyleSheet("background-color: #ffffff;")
         rl = QVBoxLayout(right)
-        rl.setContentsMargins(36, 36, 36, 36)
-        rl.setSpacing(10)
+        rl.setContentsMargins(28, 24, 28, 16)
+        rl.setSpacing(8)
         root.addWidget(right, 1)
 
+        # Current result
         self.type_label = QLabel("● Chờ nhận diện")
         self.type_label.setStyleSheet(
-            "color: #0969da; font-size: 26px; font-weight: bold;")
+            "color: #0969da; font-size: 22px; font-weight: bold;")
         rl.addWidget(self.type_label)
 
         self.status_badge = QLabel()
-        self.status_badge.setFixedHeight(34)
+        self.status_badge.setFixedHeight(30)
         self.status_badge.setAlignment(Qt.AlignCenter)
         self.status_badge.hide()
         rl.addWidget(self.status_badge)
@@ -87,37 +86,63 @@ class ActiveScreen(QWidget):
         rl.addWidget(line)
 
         self.name_label = QLabel("—")
-        self.name_label.setFont(QFont("Sans", 30, QFont.Bold))
+        self.name_label.setFont(QFont("Sans", 26, QFont.Bold))
         self.name_label.setStyleSheet("color: #24292f;")
         self.name_label.setWordWrap(True)
         rl.addWidget(self.name_label)
 
         self.code_label = QLabel()
-        self.code_label.setStyleSheet("color: #57606a; font-size: 17px;")
+        self.code_label.setStyleSheet("color: #57606a; font-size: 15px;")
         rl.addWidget(self.code_label)
 
         self.time_label = QLabel()
-        self.time_label.setStyleSheet("color: #0969da; font-size: 17px;")
+        self.time_label.setStyleSheet("color: #0969da; font-size: 15px;")
         rl.addWidget(self.time_label)
+
+        # ── Recent log ────────────────────────────────────────────────────
+        log_div = QFrame()
+        log_div.setFrameShape(QFrame.HLine)
+        log_div.setStyleSheet("color: #d0d7de;")
+        rl.addWidget(log_div)
+
+        self.log_title = QLabel("Hôm nay — 0 lượt")
+        self.log_title.setStyleSheet(
+            "color: #57606a; font-size: 13px; font-weight: bold;")
+        rl.addWidget(self.log_title)
+
+        self._log_rows = []
+        for _ in range(5):
+            row = QLabel()
+            row.setStyleSheet(
+                "color: #24292f; font-size: 13px; "
+                "background: #f6f8fa; border-radius: 4px; padding: 2px 6px;")
+            row.hide()
+            rl.addWidget(row)
+            self._log_rows.append(row)
 
         rl.addStretch()
 
+        # ── Bottom bar ────────────────────────────────────────────────────
+        bottom = QHBoxLayout()
         self.online_badge = QLabel("● ONLINE")
-        self.online_badge.setStyleSheet("color: #1a7f37; font-size: 13px;")
-        rl.addWidget(self.online_badge)
+        self.online_badge.setStyleSheet("color: #1a7f37; font-size: 12px;")
+        bottom.addWidget(self.online_badge)
+        bottom.addStretch()
 
         btn = QPushButton("Người tiếp theo →")
-        btn.setFixedHeight(58)
+        btn.setFixedHeight(48)
+        btn.setFixedWidth(180)
         btn.setStyleSheet("""
             QPushButton {
                 background: #f6f8fa; color: #24292f;
-                border-radius: 8px; font-size: 17px;
+                border-radius: 8px; font-size: 14px;
                 border: 1px solid #d0d7de;
             }
             QPushButton:pressed { background: #d0d7de; }
         """)
         btn.clicked.connect(self.next_clicked)
-        rl.addWidget(btn)
+        bottom.addWidget(btn)
+        rl.addLayout(bottom)
 
     def set_frame(self, frame: np.ndarray):
         h = max(self.height(), 480)
@@ -132,7 +157,7 @@ class ActiveScreen(QWidget):
         self._timeout_timer.start(TIMEOUT_MS)
         self.type_label.setText("● Chờ nhận diện")
         self.type_label.setStyleSheet(
-            "color: #0969da; font-size: 26px; font-weight: bold;")
+            "color: #0969da; font-size: 22px; font-weight: bold;")
         self.status_badge.hide()
         self.name_label.setText("—")
         self.code_label.setText("")
@@ -146,17 +171,17 @@ class ActiveScreen(QWidget):
         if rtype == "check_in":
             self.type_label.setText("✓ CHECK IN")
             self.type_label.setStyleSheet(
-                "color: #1a7f37; font-size: 26px; font-weight: bold;")
+                "color: #1a7f37; font-size: 22px; font-weight: bold;")
         else:
             self.type_label.setText("✓ CHECK OUT")
             self.type_label.setStyleSheet(
-                "color: #0969da; font-size: 26px; font-weight: bold;")
+                "color: #0969da; font-size: 22px; font-weight: bold;")
 
         color, text = STATUS_MAP.get(status, ("#0969da", status.upper()))
         self.status_badge.setText(text)
         self.status_badge.setStyleSheet(f"""
             background: {color}; color: white;
-            border-radius: 6px; font-size: 15px; font-weight: bold;
+            border-radius: 6px; font-size: 13px; font-weight: bold;
         """)
         self.status_badge.show()
 
@@ -166,10 +191,27 @@ class ActiveScreen(QWidget):
             f"{code}  ·  ID {data['user_id']}" if code else f"ID {data['user_id']}")
         self.time_label.setText(data.get("recorded_at", ""))
 
+    def update_log(self, entries: list):
+        """entries: list of {name, type, status, time} — mới nhất ở cuối."""
+        count = len(entries)
+        self.log_title.setText(f"Hôm nay — {count} lượt")
+        recent = list(reversed(entries[-5:]))  # 5 lượt gần nhất, mới trên
+        for i, row in enumerate(self._log_rows):
+            if i < len(recent):
+                e = recent[i]
+                icon  = "↑" if e["type"] == "check_in" else "↓"
+                smap  = {"present": "🟢", "late": "🟡",
+                         "early_leave": "🔴", "offline": "⚫"}
+                dot   = smap.get(e["status"], "●")
+                row.setText(f"{icon} {e['name']}  {dot}  {e['time']}")
+                row.show()
+            else:
+                row.hide()
+
     def set_online(self, online: bool):
         if online:
             self.online_badge.setText("● ONLINE")
-            self.online_badge.setStyleSheet("color: #1a7f37; font-size: 13px;")
+            self.online_badge.setStyleSheet("color: #1a7f37; font-size: 12px;")
         else:
             self.online_badge.setText("● OFFLINE")
-            self.online_badge.setStyleSheet("color: #cf222e; font-size: 13px;")
+            self.online_badge.setStyleSheet("color: #cf222e; font-size: 12px;")

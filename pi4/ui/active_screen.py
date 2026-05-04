@@ -5,15 +5,27 @@ from PyQt5.QtGui import QFont, QImage, QPixmap
 from PyQt5.QtWidgets import (QFrame, QHBoxLayout, QLabel, QPushButton,
                               QVBoxLayout, QWidget)
 
-RESET_MS    = 30_000   # 30 giây reset về chờ
-TIMEOUT_MS  = 600_000  # 10 phút quay về idle
+RESET_MS   = 30_000   # 30 giây reset về chờ
+TIMEOUT_MS = 600_000  # 10 phút quay về idle
 
 STATUS_MAP = {
-    "present":     ("#1f6feb", "PRESENT"),
-    "late":        ("#9e6a03", "LATE"),
-    "early_leave": ("#da3633", "EARLY LEAVE"),
-    "offline":     ("#484f58", "SAVED OFFLINE"),
+    "present":     ("#1a7f37", "PRESENT"),
+    "late":        ("#9a6700", "LATE"),
+    "early_leave": ("#cf222e", "EARLY LEAVE"),
+    "offline":     ("#57606a", "SAVED OFFLINE"),
 }
+
+
+def _crop_fill(frame: np.ndarray, target_w: int, target_h: int) -> np.ndarray:
+    """Scale-to-fill + crop center, giữ nguyên tỉ lệ."""
+    cam_h, cam_w = frame.shape[:2]
+    scale   = max(target_w / cam_w, target_h / cam_h)
+    new_w   = int(cam_w * scale)
+    new_h   = int(cam_h * scale)
+    resized = cv2.resize(frame, (new_w, new_h))
+    x = (new_w - target_w) // 2
+    y = (new_h - target_h) // 2
+    return resized[y:y + target_h, x:x + target_w]
 
 
 class ActiveScreen(QWidget):
@@ -31,7 +43,7 @@ class ActiveScreen(QWidget):
         self._setup_ui()
 
     def _setup_ui(self):
-        self.setStyleSheet("background-color: #0d1117;")
+        self.setStyleSheet("background-color: #ffffff;")
         root = QHBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
@@ -40,12 +52,19 @@ class ActiveScreen(QWidget):
         self.cam_label = QLabel()
         self.cam_label.setFixedWidth(400)
         self.cam_label.setAlignment(Qt.AlignCenter)
-        self.cam_label.setStyleSheet("background: #000;")
+        self.cam_label.setStyleSheet("background: #f6f8fa;")
         root.addWidget(self.cam_label)
+
+        # ── Divider ───────────────────────────────────────────────────────
+        div = QFrame()
+        div.setFrameShape(QFrame.VLine)
+        div.setFixedWidth(1)
+        div.setStyleSheet("color: #d0d7de;")
+        root.addWidget(div)
 
         # ── Right: info panel ─────────────────────────────────────────────
         right = QWidget()
-        right.setStyleSheet("background-color: #161b22;")
+        right.setStyleSheet("background-color: #ffffff;")
         rl = QVBoxLayout(right)
         rl.setContentsMargins(36, 36, 36, 36)
         rl.setSpacing(10)
@@ -53,7 +72,7 @@ class ActiveScreen(QWidget):
 
         self.type_label = QLabel("● Chờ nhận diện")
         self.type_label.setStyleSheet(
-            "color: #58a6ff; font-size: 26px; font-weight: bold;")
+            "color: #0969da; font-size: 26px; font-weight: bold;")
         rl.addWidget(self.type_label)
 
         self.status_badge = QLabel()
@@ -64,46 +83,46 @@ class ActiveScreen(QWidget):
 
         line = QFrame()
         line.setFrameShape(QFrame.HLine)
-        line.setStyleSheet("color: #30363d;")
+        line.setStyleSheet("color: #d0d7de;")
         rl.addWidget(line)
 
         self.name_label = QLabel("—")
         self.name_label.setFont(QFont("Sans", 30, QFont.Bold))
-        self.name_label.setStyleSheet("color: #e6edf3;")
+        self.name_label.setStyleSheet("color: #24292f;")
         self.name_label.setWordWrap(True)
         rl.addWidget(self.name_label)
 
         self.code_label = QLabel()
-        self.code_label.setStyleSheet("color: #8b949e; font-size: 17px;")
+        self.code_label.setStyleSheet("color: #57606a; font-size: 17px;")
         rl.addWidget(self.code_label)
 
         self.time_label = QLabel()
-        self.time_label.setStyleSheet("color: #58a6ff; font-size: 17px;")
+        self.time_label.setStyleSheet("color: #0969da; font-size: 17px;")
         rl.addWidget(self.time_label)
 
         rl.addStretch()
 
         self.online_badge = QLabel("● ONLINE")
-        self.online_badge.setStyleSheet("color: #3fb950; font-size: 13px;")
+        self.online_badge.setStyleSheet("color: #1a7f37; font-size: 13px;")
         rl.addWidget(self.online_badge)
 
         btn = QPushButton("Người tiếp theo →")
         btn.setFixedHeight(58)
         btn.setStyleSheet("""
             QPushButton {
-                background: #21262d; color: #e6edf3;
+                background: #f6f8fa; color: #24292f;
                 border-radius: 8px; font-size: 17px;
-                border: 1px solid #30363d;
+                border: 1px solid #d0d7de;
             }
-            QPushButton:pressed { background: #30363d; }
+            QPushButton:pressed { background: #d0d7de; }
         """)
         btn.clicked.connect(self.next_clicked)
         rl.addWidget(btn)
 
     def set_frame(self, frame: np.ndarray):
         h = max(self.height(), 480)
-        resized = cv2.resize(frame, (400, h))
-        rgb     = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
+        cropped = _crop_fill(frame, 400, h)
+        rgb     = cv2.cvtColor(cropped, cv2.COLOR_BGR2RGB)
         rgb     = np.ascontiguousarray(rgb)
         img     = QImage(rgb.data, 400, h, 400 * 3, QImage.Format_RGB888)
         self.cam_label.setPixmap(QPixmap.fromImage(img))
@@ -113,7 +132,7 @@ class ActiveScreen(QWidget):
         self._timeout_timer.start(TIMEOUT_MS)
         self.type_label.setText("● Chờ nhận diện")
         self.type_label.setStyleSheet(
-            "color: #58a6ff; font-size: 26px; font-weight: bold;")
+            "color: #0969da; font-size: 26px; font-weight: bold;")
         self.status_badge.hide()
         self.name_label.setText("—")
         self.code_label.setText("")
@@ -127,13 +146,13 @@ class ActiveScreen(QWidget):
         if rtype == "check_in":
             self.type_label.setText("✓ CHECK IN")
             self.type_label.setStyleSheet(
-                "color: #3fb950; font-size: 26px; font-weight: bold;")
+                "color: #1a7f37; font-size: 26px; font-weight: bold;")
         else:
             self.type_label.setText("✓ CHECK OUT")
             self.type_label.setStyleSheet(
-                "color: #58a6ff; font-size: 26px; font-weight: bold;")
+                "color: #0969da; font-size: 26px; font-weight: bold;")
 
-        color, text = STATUS_MAP.get(status, ("#1f6feb", status.upper()))
+        color, text = STATUS_MAP.get(status, ("#0969da", status.upper()))
         self.status_badge.setText(text)
         self.status_badge.setStyleSheet(f"""
             background: {color}; color: white;
@@ -150,7 +169,7 @@ class ActiveScreen(QWidget):
     def set_online(self, online: bool):
         if online:
             self.online_badge.setText("● ONLINE")
-            self.online_badge.setStyleSheet("color: #3fb950; font-size: 13px;")
+            self.online_badge.setStyleSheet("color: #1a7f37; font-size: 13px;")
         else:
             self.online_badge.setText("● OFFLINE")
-            self.online_badge.setStyleSheet("color: #f85149; font-size: 13px;")
+            self.online_badge.setStyleSheet("color: #cf222e; font-size: 13px;")

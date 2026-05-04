@@ -20,7 +20,7 @@ class SettingsScreen(QWidget):
         self._load()
 
     def _setup_ui(self):
-        self.setStyleSheet("background-color: #0d1117; color: #e6edf3;")
+        self.setStyleSheet("background-color: #ffffff; color: #24292f;")
         root = QVBoxLayout(self)
         root.setContentsMargins(48, 32, 48, 32)
         root.setSpacing(14)
@@ -29,11 +29,11 @@ class SettingsScreen(QWidget):
         header = QHBoxLayout()
         btn_back = QPushButton("← Quay lại")
         btn_back.setFixedSize(140, 44)
-        btn_back.setStyleSheet(self._btn("#21262d"))
+        btn_back.setStyleSheet(self._btn("#f6f8fa", "#24292f"))
         btn_back.clicked.connect(self.back_clicked)
         header.addWidget(btn_back)
         title = QLabel("Cài Đặt")
-        title.setStyleSheet("font-size: 22px; font-weight: bold;")
+        title.setStyleSheet("font-size: 22px; font-weight: bold; color: #24292f;")
         header.addWidget(title)
         header.addStretch()
         root.addLayout(header)
@@ -49,49 +49,51 @@ class SettingsScreen(QWidget):
 
         # ── Status ────────────────────────────────────────────────────────
         self.status = QLabel()
-        self.status.setStyleSheet("color: #8b949e; font-size: 14px;")
+        self.status.setStyleSheet("color: #57606a; font-size: 14px;")
         root.addWidget(self.status)
 
         # ── Buttons ───────────────────────────────────────────────────────
         btn_row = QHBoxLayout()
         btn_test = QPushButton("Test kết nối")
         btn_test.setFixedHeight(54)
-        btn_test.setStyleSheet(self._btn("#1f6feb"))
+        btn_test.setStyleSheet(self._btn("#0969da", "white"))
         btn_test.clicked.connect(self._test)
         btn_row.addWidget(btn_test)
 
         btn_save = QPushButton("Lưu")
         btn_save.setFixedHeight(54)
-        btn_save.setStyleSheet(self._btn("#238636"))
+        btn_save.setStyleSheet(self._btn("#1a7f37", "white"))
         btn_save.clicked.connect(self._save)
         btn_row.addWidget(btn_save)
         root.addLayout(btn_row)
 
     def _field(self, parent_layout, label: str, masked=False) -> QLineEdit:
-        parent_layout.addWidget(QLabel(label))
+        lbl = QLabel(label)
+        lbl.setStyleSheet("color: #57606a; font-size: 13px;")
+        parent_layout.addWidget(lbl)
         field = QLineEdit()
         field.setFixedHeight(46)
         if masked:
             field.setEchoMode(QLineEdit.Password)
         field.setStyleSheet("""
             QLineEdit {
-                background: #161b22; border: 1px solid #30363d;
+                background: #f6f8fa; border: 1px solid #d0d7de;
                 border-radius: 6px; padding: 0 12px;
-                font-size: 15px; color: #e6edf3;
+                font-size: 15px; color: #24292f;
             }
-            QLineEdit:focus { border-color: #58a6ff; }
+            QLineEdit:focus { border-color: #0969da; }
         """)
         parent_layout.addWidget(field)
         return field
 
-    def _btn(self, bg: str) -> str:
+    def _btn(self, bg: str, fg: str = "#24292f") -> str:
         return f"""
             QPushButton {{
-                background: {bg}; color: #e6edf3;
+                background: {bg}; color: {fg};
                 border-radius: 8px; font-size: 15px;
-                border: 1px solid #30363d;
+                border: 1px solid #d0d7de;
             }}
-            QPushButton:pressed {{ background: #30363d; }}
+            QPushButton:pressed {{ opacity: 0.85; }}
         """
 
     def _load(self):
@@ -112,17 +114,17 @@ class SettingsScreen(QWidget):
             set_key(ENV_PATH, "CAMERA_INDEX",     self.f_camera.text())
             set_key(ENV_PATH, "MIN_CONFIDENCE",   self.f_conf.text())
             set_key(ENV_PATH, "COOLDOWN_SECONDS", self.f_cooldown.text())
-            self._set_status("✓ Đã lưu — khởi động lại để áp dụng", "#3fb950")
+            self._set_status("✓ Đã lưu — khởi động lại để áp dụng", "#1a7f37")
         except Exception as e:
-            self._set_status(f"✗ Lỗi: {e}", "#f85149")
+            self._set_status(f"✗ Lỗi: {e}", "#cf222e")
 
     def _test(self):
-        self._set_status("Đang kiểm tra...", "#8b949e")
+        self._set_status("Đang kiểm tra...", "#57606a")
         result = api_client.auth_device()
         if result:
-            self._set_status(f"✓ OK — {result.get('name')}", "#3fb950")
+            self._set_status(f"✓ OK — {result.get('name')}", "#1a7f37")
         else:
-            self._set_status("✗ Không kết nối được server", "#f85149")
+            self._set_status("✗ Không kết nối được server", "#cf222e")
 
     def _set_status(self, msg: str, color: str):
         self.status.setText(msg)

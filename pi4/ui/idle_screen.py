@@ -21,7 +21,7 @@ class IdleScreen(QWidget):
         self._tick()
 
     def _setup_ui(self):
-        self.setStyleSheet("background-color: #0d1117;")
+        self.setStyleSheet("background-color: #ffffff;")
         root = QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
@@ -32,7 +32,7 @@ class IdleScreen(QWidget):
         top.addStretch()
         self.online_badge = QLabel("● ONLINE")
         self.online_badge.setStyleSheet(
-            "color: #3fb950; font-size: 14px; font-weight: bold;")
+            "color: #1a7f37; font-size: 14px; font-weight: bold;")
         top.addWidget(self.online_badge)
         root.addLayout(top)
 
@@ -42,13 +42,13 @@ class IdleScreen(QWidget):
         self.clock = QLabel("00:00:00")
         self.clock.setAlignment(Qt.AlignCenter)
         self.clock.setFont(QFont("Monospace", 68, QFont.Bold))
-        self.clock.setStyleSheet("color: #e6edf3;")
+        self.clock.setStyleSheet("color: #24292f;")
         root.addWidget(self.clock)
 
         # ── Date ──────────────────────────────────────────────────────────
         self.date = QLabel()
         self.date.setAlignment(Qt.AlignCenter)
-        self.date.setStyleSheet("color: #8b949e; font-size: 20px;")
+        self.date.setStyleSheet("color: #57606a; font-size: 20px;")
         root.addWidget(self.date)
 
         root.addSpacing(28)
@@ -56,7 +56,7 @@ class IdleScreen(QWidget):
         # ── Hint ──────────────────────────────────────────────────────────
         hint = QLabel("Nhìn vào camera hoặc chạm màn hình để điểm danh")
         hint.setAlignment(Qt.AlignCenter)
-        hint.setStyleSheet("color: #58a6ff; font-size: 17px;")
+        hint.setStyleSheet("color: #0969da; font-size: 17px;")
         root.addWidget(hint)
 
         root.addStretch(2)
@@ -68,7 +68,7 @@ class IdleScreen(QWidget):
         self.cam_preview = QLabel()
         self.cam_preview.setFixedSize(160, 120)
         self.cam_preview.setStyleSheet(
-            "background: #000; border: 1px solid #30363d; border-radius: 4px;")
+            "background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 4px;")
         bottom.addWidget(self.cam_preview)
 
         bottom.addStretch()
@@ -77,11 +77,11 @@ class IdleScreen(QWidget):
         btn.setFixedSize(56, 56)
         btn.setStyleSheet("""
             QPushButton {
-                background: #21262d; color: #8b949e;
+                background: #f6f8fa; color: #57606a;
                 border-radius: 28px; font-size: 24px;
-                border: 1px solid #30363d;
+                border: 1px solid #d0d7de;
             }
-            QPushButton:pressed { background: #30363d; }
+            QPushButton:pressed { background: #d0d7de; }
         """)
         btn.clicked.connect(self.settings_clicked)
         bottom.addWidget(btn)
@@ -103,11 +103,11 @@ class IdleScreen(QWidget):
         if online:
             self.online_badge.setText("● ONLINE")
             self.online_badge.setStyleSheet(
-                "color: #3fb950; font-size: 14px; font-weight: bold;")
+                "color: #1a7f37; font-size: 14px; font-weight: bold;")
         else:
             self.online_badge.setText("● OFFLINE")
             self.online_badge.setStyleSheet(
-                "color: #f85149; font-size: 14px; font-weight: bold;")
+                "color: #cf222e; font-size: 14px; font-weight: bold;")
 
     def mousePressEvent(self, event):
         self.screen_tapped.emit()

@@ -30,7 +30,7 @@ class EncodeFaceJob implements ShouldQueue
         }
 
         // Gọi Python script để tính face encoding
-        $scriptPath = base_path('../pi4/face_encode_single.py');
+        $scriptPath = base_path('../../pi4/face_encode_single.py');
         $command    = escapeshellcmd("python \"{$scriptPath}\" \"{$fullPath}\"");
         $output     = shell_exec($command);
 

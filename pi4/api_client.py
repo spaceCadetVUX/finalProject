@@ -33,6 +33,30 @@ def fetch_encodings(updated_since: int | None = None) -> list[dict]:
     return data if isinstance(data, list) else data.get("encodings", [])
 
 
+def create_employee(name: str, code: str, encoding: list) -> dict | None:
+    """
+    Tạo nhân viên mới từ Pi4. Trả về {user_id, name, code} hoặc None nếu lỗi.
+    Raises ValueError nếu mã nhân viên đã tồn tại.
+    """
+    try:
+        resp = requests.post(
+            f"{SERVER_URL}/api/employees",
+            json={"name": name, "code": code, "encoding": encoding},
+            headers=HEADERS, timeout=15,
+        )
+        if resp.status_code in (200, 201):
+            return resp.json()
+        if resp.status_code == 422:
+            errors = resp.json().get("errors", {})
+            if "code" in errors:
+                raise ValueError("Mã nhân viên đã tồn tại")
+        return None
+    except ValueError:
+        raise
+    except requests.RequestException:
+        return None
+
+
 def post_attendance(user_id: int, record_type: str, confidence: float,
                     image_b64: str | None, recorded_at: str) -> dict | None:
     """

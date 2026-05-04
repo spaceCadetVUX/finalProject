@@ -12,7 +12,8 @@ ENV_PATH = os.path.join(
 
 
 class SettingsScreen(QWidget):
-    back_clicked = pyqtSignal()
+    back_clicked          = pyqtSignal()
+    add_employee_clicked  = pyqtSignal()
 
     def __init__(self):
         super().__init__()
@@ -66,6 +67,12 @@ class SettingsScreen(QWidget):
         btn_save.clicked.connect(self._save)
         btn_row.addWidget(btn_save)
         root.addLayout(btn_row)
+
+        btn_add_emp = QPushButton("👤  Thêm nhân viên")
+        btn_add_emp.setFixedHeight(54)
+        btn_add_emp.setStyleSheet(self._btn("#f6f8fa", "#24292f"))
+        btn_add_emp.clicked.connect(self.add_employee_clicked)
+        root.addWidget(btn_add_emp)
 
     def _field(self, parent_layout, label: str, masked=False) -> QLineEdit:
         lbl = QLabel(label)

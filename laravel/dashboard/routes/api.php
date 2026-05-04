@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AuthDeviceController;
 use App\Http\Controllers\Api\EncodingController;
 use App\Http\Controllers\Api\AttendanceApiController;
 use App\Http\Controllers\Api\DevicePingController;
+use App\Http\Controllers\Api\EmployeeApiController;
 
 /*
 |--------------------------------------------------------------------------
@@ -26,6 +27,9 @@ Route::middleware('device.token')->group(function () {
 
     // Heartbeat — cập nhật last_ping + status=online
     Route::post('/device/ping', [DevicePingController::class, '__invoke']);
+
+    // Thêm nhân viên mới từ Pi4 (Pi tự encode, gửi encoding lên)
+    Route::post('/employees', [EmployeeApiController::class, 'store']);
 });
 
 /*

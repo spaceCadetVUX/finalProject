@@ -15,6 +15,7 @@ from face_recognizer import FaceRecognizer
 from sync_manager import refresh_encodings, sync_pending
 
 from ui.active_screen import ActiveScreen
+from ui.add_employee_screen import AddEmployeeScreen
 from ui.idle_screen import IdleScreen
 from ui.settings_screen import SettingsScreen
 
@@ -167,15 +168,17 @@ class MainWindow(QMainWindow):
         except Exception:
             pass
 
-        self.stack    = QStackedWidget()
-        self.idle     = IdleScreen()
-        self.active   = ActiveScreen()
-        self.settings = SettingsScreen()
+        self.stack        = QStackedWidget()
+        self.idle         = IdleScreen()
+        self.active       = ActiveScreen()
+        self.settings     = SettingsScreen()
+        self.add_employee = AddEmployeeScreen()
 
         self.setCentralWidget(self.stack)
-        self.stack.addWidget(self.idle)      # 0
-        self.stack.addWidget(self.active)    # 1
-        self.stack.addWidget(self.settings)  # 2
+        self.stack.addWidget(self.idle)         # 0
+        self.stack.addWidget(self.active)       # 1
+        self.stack.addWidget(self.settings)     # 2
+        self.stack.addWidget(self.add_employee) # 3
 
         # Grace-period timer: clear person sau 2s không nhận ra ai
         self._clear_timer = QTimer(self)
@@ -187,10 +190,16 @@ class MainWindow(QMainWindow):
         self.active.record_requested.connect(self._on_record_requested)
         self.active.timed_out.connect(self._show_idle)
         self.settings.back_clicked.connect(self._show_idle)
+        self.settings.add_employee_clicked.connect(
+            lambda: self.stack.setCurrentIndex(3))
+        self.add_employee.back_clicked.connect(
+            lambda: self.stack.setCurrentIndex(2))
+        self.add_employee.employee_added.connect(self._on_employee_added)
 
         self.cam_thread = CameraThread(self.recognizer)
         self.cam_thread.new_frame.connect(self.idle.set_frame)
         self.cam_thread.new_frame.connect(self.active.set_frame)
+        self.cam_thread.new_frame.connect(self.add_employee.set_frame)
         self.cam_thread.person_identified.connect(self._on_person_identified)
         self.cam_thread.person_cleared.connect(self._on_person_cleared)
         self.cam_thread.start()
@@ -258,6 +267,27 @@ class MainWindow(QMainWindow):
         self.active.update_log(self._session_log)
         self.idle.update_stats(len(self._session_log))
         self.active.show_result(data, status)
+
+    def _on_employee_added(self, data: dict):
+        try:
+            result = api_client.create_employee(
+                data["name"], data["code"], data["encoding"])
+            if result:
+                self.recognizer.update_encoding({
+                    "user_id":  result["user_id"],
+                    "name":     result["name"],
+                    "code":     result["code"],
+                    "encoding": data["encoding"],
+                })
+                self.add_employee.set_result(
+                    True,
+                    f"Đã thêm {result['name']} (#{result['code']}). "
+                    "Có thể thêm tiếp hoặc quay lại."
+                )
+            else:
+                self.add_employee.set_result(False, "Lỗi server. Kiểm tra kết nối.")
+        except ValueError as e:
+            self.add_employee.set_result(False, str(e))
 
     def closeEvent(self, event):
         self.cam_thread.stop()

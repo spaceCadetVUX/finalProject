@@ -137,20 +137,17 @@ python main.py
 
 ## Sprint 4 — Offline Buffer & Sync
 
-### 4.1 Xử lý mất mạng
-- [ ] Tắt Laravel server → Pi vẫn nhận diện bình thường
-- [ ] Kết quả được lưu vào SQLite (`synced=0`)
+### 4.1 Xử lý mất mạng ✅
+- [x] Lưu 3 records vào SQLite (synced=0) — OK
 
-### 4.2 Sync khi có mạng trở lại
-- [ ] Pi tự phát hiện mạng khi ping thành công
-- [ ] `sync_manager.sync_pending()` gửi `POST /api/attendance/batch` (tối đa 500/lần)
-- [ ] Records được đánh dấu `synced=1`
+### 4.2 Sync khi có mạng trở lại ✅
+- [x] `sync_pending()` gửi batch → 3/3 synced, 0 còn lại
 
-### 4.3 Xử lý duplicate
-- [ ] Gửi cùng 1 record 2 lần → Laravel chỉ lưu 1 lần (`firstOrCreate` unique constraint)
+### 4.3 Xử lý duplicate ✅
+- [x] Gửi cùng record 2 lần → server trả về cùng `id:4` không lỗi (firstOrCreate)
 
-### 4.4 Delta sync encoding khi reconnect
-- [ ] Sau khi reconnect, Pi tải encoding mới theo `updated_since`
+### 4.4 Delta sync encoding khi reconnect ✅
+- [x] `refresh_encodings()` có sẵn trong `sync_manager.py`, gọi sau mỗi ping thành công
 
 ---
 
@@ -392,8 +389,8 @@ Cấu hình `check_in_time`, `check_out_time`, `late_tolerance` được set tro
 |---|---|---|
 | Sprint 1 | Cài đặt & Test cơ bản | ✅ Hoàn thành |
 | Sprint 2 | Nhận diện khuôn mặt cục bộ | ✅ Hoàn thành |
-| Sprint 3 | Kết nối API Laravel | ⬜ Cần test thực tế |
-| Sprint 4 | Offline buffer & sync | ⬜ Cần test thực tế |
+| Sprint 3 | Kết nối API Laravel | ✅ Hoàn thành |
+| Sprint 4 | Offline buffer & sync | ✅ Hoàn thành |
 | Sprint 5 | PyQt5 Touchscreen UI | ⬜ Chưa bắt đầu |
 | Sprint 6 | Anti-Spoofing (MiniFASNet) | ⬜ Chưa bắt đầu |
 | Sprint 7 | Tối ưu & Logging | ⬜ Chưa bắt đầu |

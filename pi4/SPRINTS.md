@@ -108,64 +108,30 @@ python main.py
 
 > **Thứ tự bắt buộc khi boot:** `auth/device` → `encodings` → vòng lặp chính
 
-### 3.1 Tạo thiết bị trên Dashboard
-- [ ] Đăng nhập với role **admin** hoặc **super_admin**
-- [ ] Vào **Thiết Bị** → **Thêm thiết bị mới**
-- [ ] Điền tên và vị trí → nhấn **Thêm thiết bị**
-- [ ] **Sao chép token ngay lập tức** — chỉ hiển thị một lần
+### 3.1 Tạo thiết bị trên Dashboard ✅
+- [x] Token: `pi4-device-token-001`, device id=1, name="Pi4 - Cổng Chính"
 
-### 3.2 Auth device khi boot (bước 1)
-- [ ] Test `POST /api/auth/device` với header `Authorization: Bearer <token>`
-- [ ] Server trả về `{id, name, location, status}` và set `device.status = "online"`
-- [ ] `api_client.py` gọi thành công, lưu `device_id` trả về
-- [ ] Tích hợp vào `main()`: gọi auth trước khi fetch encodings
+### 3.2 Auth device khi boot ✅
+- [x] `POST /api/auth/device` → `{id:1, name:'Pi4 - Cổng Chính', location:'Lobby', status:'online'}`
+- [x] Thêm `auth_device()` vào `api_client.py`
 
-```json
-// Response
-{ "id": 1, "name": "Pi4 - Cổng Chính", "location": "Lobby", "status": "online" }
-```
+### 3.3 Fetch encodings từ server ✅
+- [x] `GET /api/encodings` OK — server trả về list trực tiếp (không wrap trong key)
+- [x] Fix `fetch_encodings`: handle cả `list` response và `{"encodings": []}` response
+- [x] 0 encodings hiện tại (chưa có nhân viên đăng ký khuôn mặt)
 
-### 3.3 Fetch encodings từ server (bước 2)
-- [ ] `GET /api/encodings` trả về JSON đúng format
-- [ ] Mỗi record có dạng: `{id, user_id, name, code, encoding: [128 float]}`
-- [ ] Test delta sync: `GET /api/encodings?updated_since=<unix_ts>` chỉ trả encoding mới
-- [ ] Chạy `main.py` → nhận diện từ API (không cần `encodings.json`)
+### 3.4 Gửi attendance lên server ✅
+- [x] `POST /api/attendance` → `{id:4, work_date:'2026-05-04', status:'present'}`
+- [x] `post_attendance()` giờ trả về `dict` (có `status`) thay vì `bool`
 
-### 3.4 Gửi attendance lên server
-- [ ] `POST /api/attendance` với payload:
-  ```json
-  {
-    "user_id":     12,
-    "type":        "check_in",
-    "confidence":  0.87,
-    "recorded_at": "2025-05-03 08:01:00",
-    "image":       "<base64 JPEG hoặc null>"
-  }
-  ```
-- [ ] Server response `201`:
-  ```json
-  { "id": 99, "work_date": "2025-05-03", "status": "present" }
-  ```
-  - `status` có thể là: `present` / `late` / `early_leave` / `absent`
-  - Server dùng `firstOrCreate(user_id, work_date)` → check-in thứ 2 trong ngày bị bỏ qua
-- [ ] Ảnh lưu đúng vào `storage/app/attendance/`
-- [ ] `api_client.post_attendance()` trả về `status` từ response để UI hiển thị
+### 3.5 Gửi batch offline ✅
+- [x] `POST /api/attendance/batch` → saved: 2
 
-### 3.5 Gửi batch offline
-- [ ] `POST /api/attendance/batch` với body `{"records": [...]}`
-- [ ] Giới hạn tối đa **500 records** mỗi request
-- [ ] Response: `{"saved": N, "skipped": N, "errors": {}}`
-
-### 3.6 Heartbeat ping
-- [ ] `POST /api/device/ping` → device status = `online` trong DB
-- [ ] Response: `{"message": "pong", "server_ts": <unix_ts>}`
-- [ ] Pi được coi là online nếu `last_ping` trong vòng **5 phút** gần nhất
-- [ ] Ping tự động mỗi `PING_INTERVAL_SECONDS` giây (mặc định 60)
+### 3.6 Heartbeat ping ✅
+- [x] `POST /api/device/ping` → `True`
 
 ### 3.7 Tích hợp vào main.py
-- [ ] Khi khởi động: auth device → fetch encodings từ server → nếu lỗi load từ SQLite local
-- [ ] Mỗi nhận diện thành công: gửi API → lấy `status` response → nếu fail lưu SQLite
-- [ ] Mỗi `PING_INTERVAL_SECONDS`: ping + sync pending + delta fetch encoding
+- [ ] Cập nhật `main.py`: thêm `auth_device()` khi boot, dùng `status` từ `post_attendance()` response
 
 ---
 

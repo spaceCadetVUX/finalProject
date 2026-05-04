@@ -53,14 +53,21 @@ def main():
     frame_count  = 0
     online       = False
 
+    print("[Main] Đang kết nối server...")
+    device_info = api_client.auth_device()
+    if device_info:
+        print(f"[Main] Auth OK — {device_info.get('name')} ({device_info.get('location')})")
+        online = True
+    else:
+        print("[Main] Auth thất bại, chạy offline")
+
     print("[Main] Đang tải encoding từ server...")
     try:
         records = api_client.fetch_encodings()
         recognizer.load_encodings(records)
         last_sync_ts = int(time.time())
-        online = True
     except Exception as e:
-        print(f"[Main] Không kết nối được server khi khởi động: {e}")
+        print(f"[Main] Không tải được encoding từ server: {e}")
 
     print("[Main] Bắt đầu vòng lặp nhận diện. Nhấn 'q' để thoát.")
 
@@ -114,9 +121,12 @@ def main():
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
 
             if online:
-                ok = api_client.post_attendance(user_id, record_type, confidence,
-                                                image_b64, recorded_at)
-                if not ok:
+                result = api_client.post_attendance(user_id, record_type, confidence,
+                                                    image_b64, recorded_at)
+                if result:
+                    status = result.get("status", "")
+                    print(f"[Main] Chấm công: user={user_id} {record_type} → {status}")
+                else:
                     local_storage.save_record(user_id, record_type, confidence,
                                               image_b64, recorded_at)
                     online = False

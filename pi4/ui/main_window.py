@@ -1,4 +1,6 @@
 import base64
+import queue
+import threading
 import time
 from datetime import datetime
 
@@ -18,19 +20,22 @@ from ui.active_screen import ActiveScreen
 from ui.idle_screen import IdleScreen
 from ui.settings_screen import SettingsScreen
 
+FRAME_INTERVAL = 1 / 20  # cap 20 FPS cho camera feed
+
 
 class CameraThread(QThread):
-    new_frame     = pyqtSignal(object)   # np.ndarray BGR
-    face_detected = pyqtSignal(object)   # dict
+    new_frame     = pyqtSignal(object)  # np.ndarray BGR (đã vẽ box)
+    face_detected = pyqtSignal(object)  # dict
 
     def __init__(self, recognizer: FaceRecognizer):
         super().__init__()
-        self.recognizer   = recognizer
-        self._running     = True
-        self._mode        = "idle"
-        self._frame_count = 0
-        self._cooldown    = {}  # {user_id: last_ts}
-        self._last_faces  = []  # [{location, recognized}] để vẽ box liên tục
+        self.recognizer  = recognizer
+        self._running    = True
+        self._mode       = "idle"
+        self._cooldown   = {}
+        self._last_faces = []           # cập nhật bởi recognition worker
+        self._faces_lock = threading.Lock()
+        self._rec_queue  = queue.Queue(maxsize=1)
 
     def set_mode(self, mode: str):
         self._mode = mode
@@ -43,44 +48,25 @@ class CameraThread(QThread):
         self._cooldown[user_id] = now
         return rtype
 
-    def run(self):
-        cam = Camera()
+    def _recognition_worker(self):
+        """Chạy recognition trong Python thread riêng, không block camera feed."""
         while self._running:
-            ok, frame = cam.read_frame()
-            if not ok:
-                time.sleep(0.1)
+            try:
+                frame_rgb = self._rec_queue.get(timeout=0.2)
+            except queue.Empty:
                 continue
 
-            # Vẽ bounding box từ lần nhận diện trước lên frame
-            annotated = frame.copy()
-            for face in self._last_faces:
-                t, r, b, l = face["location"]
-                color = (0, 180, 0) if face["recognized"] else (0, 0, 210)  # BGR
-                cv2.rectangle(annotated, (l, t), (r, b), color, 2)
-                if face["recognized"]:
-                    label = f"{face.get('name','?')} {face.get('confidence',0):.0%}"
-                    cv2.putText(annotated, label, (l, t - 8),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
-                else:
-                    cv2.putText(annotated, "Unknown", (l, t - 8),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
+            detections = self.recognizer.recognize_all(
+                frame_rgb, tolerance=1.0 - MIN_CONFIDENCE)
 
-            self.new_frame.emit(annotated)
-            self._frame_count += 1
+            faces_info = [{"location":   d["location"],
+                           "recognized": d["recognized"],
+                           "name":       d.get("name", ""),
+                           "confidence": d.get("confidence", 0)}
+                          for d in detections]
 
-            skip = PROCESS_EVERY_N if self._mode == "active" else PROCESS_EVERY_N * 5
-            if self._frame_count % skip != 0:
-                time.sleep(0.01)
-                continue
-
-            rgb        = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            detections = self.recognizer.recognize_all(rgb, tolerance=1.0 - MIN_CONFIDENCE)
-
-            # Cập nhật danh sách faces để vẽ box frame tiếp theo
-            self._last_faces = [{"location": d["location"],
-                                  "recognized": d["recognized"],
-                                  "name": d.get("name", ""),
-                                  "confidence": d.get("confidence", 0)} for d in detections]
+            with self._faces_lock:
+                self._last_faces = faces_info
 
             for det in detections:
                 if not det["recognized"]:
@@ -88,14 +74,6 @@ class CameraThread(QThread):
                 rtype = self._record_type(det["user_id"])
                 if rtype is None:
                     continue
-
-                top, right, bottom, left = det["location"]
-                face_crop = frame[top:bottom, left:right]
-                image_b64 = None
-                if face_crop.size > 0:
-                    _, buf = cv2.imencode(".jpg", face_crop, [cv2.IMWRITE_JPEG_QUALITY, 70])
-                    image_b64 = base64.b64encode(buf).decode()
-
                 self.face_detected.emit({
                     "user_id":     det["user_id"],
                     "name":        det["name"],
@@ -103,11 +81,55 @@ class CameraThread(QThread):
                     "confidence":  det["confidence"],
                     "record_type": rtype,
                     "recorded_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "image_b64":   image_b64,
+                    "image_b64":   None,
                     "location":    det["location"],
                 })
 
-            time.sleep(0.01)
+    def run(self):
+        worker = threading.Thread(target=self._recognition_worker, daemon=True)
+        worker.start()
+
+        cam = Camera()
+        frame_count = 0
+
+        while self._running:
+            t0 = time.time()
+            ok, frame = cam.read_frame()
+            if not ok:
+                time.sleep(0.1)
+                continue
+
+            # Vẽ box từ kết quả recognition gần nhất (không block)
+            with self._faces_lock:
+                faces = list(self._last_faces)
+
+            annotated = frame.copy()
+            for face in faces:
+                t, r, b, l = face["location"]
+                color = (0, 180, 0) if face["recognized"] else (0, 0, 210)
+                cv2.rectangle(annotated, (l, t), (r, b), color, 2)
+                label = (f"{face['name']} {face['confidence']:.0%}"
+                         if face["recognized"] else "Unknown")
+                cv2.putText(annotated, label, (l, max(t - 8, 0)),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
+
+            self.new_frame.emit(annotated)
+            frame_count += 1
+
+            # Submit frame cho recognition worker (drop nếu đang bận)
+            skip = PROCESS_EVERY_N if self._mode == "active" else PROCESS_EVERY_N * 4
+            if frame_count % skip == 0:
+                rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                try:
+                    self._rec_queue.put_nowait(rgb)
+                except queue.Full:
+                    pass  # worker vẫn đang xử lý frame trước, bỏ qua
+
+            elapsed = time.time() - t0
+            sleep = FRAME_INTERVAL - elapsed
+            if sleep > 0:
+                time.sleep(sleep)
+
         cam.release()
 
     def stop(self):
@@ -201,10 +223,8 @@ class MainWindow(QMainWindow):
             data["user_id"], data["record_type"], data["confidence"],
             data["image_b64"], data["recorded_at"],
         )
-        if result:
-            status = result.get("status", "present")
-        else:
-            status = "offline"
+        status = result.get("status", "present") if result else "offline"
+        if not result:
             local_storage.save_record(
                 data["user_id"], data["record_type"], data["confidence"],
                 data["image_b64"], data["recorded_at"],

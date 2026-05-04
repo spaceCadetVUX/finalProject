@@ -80,22 +80,21 @@ python test_face.py
 
 ---
 
-## Sprint 2 — Nhận Diện Khuôn Mặt Cục Bộ
+## Sprint 2 — Nhận Diện Khuôn Mặt Cục Bộ ✅
 
-### 2.1 Chuẩn bị encoding cục bộ
-- [ ] Tạo `encode_local.py` — encode ảnh từ thư mục local
-  - [ ] Đọc tất cả ảnh trong `test_images/`
-  - [ ] Lưu ra file `encodings.json` dạng `[{user_id, name, encoding}]`
+### 2.1 Chuẩn bị encoding cục bộ ✅
+- [x] Tạo `encode_local.py` — encode ảnh từ thư mục local
+- [x] Đọc tất cả ảnh trong `test_images/`
+- [x] Lưu ra file `encodings.json` dạng `[{user_id, name, encoding}]`
 
-### 2.2 FaceRecognizer load từ file JSON
-- [ ] Thêm method `load_from_file(path)` vào `face_recognizer.py`
-- [ ] Test nhận diện từ file JSON (chưa cần API)
-- [ ] Xác nhận nhận diện được ≥ 2 người
+### 2.2 FaceRecognizer load từ file JSON ✅
+- [x] Thêm method `load_from_file(path)` vào `face_recognizer.py`
+- [x] Fix dlib 20.x: `np.ascontiguousarray(frame_rgb[::2, ::2])` — dlib 20 strict hơn về C-contiguous
+- [x] person_1 → user_id=1 (92%), person_2 → user_id=2 (96%) ✅
 
-### 2.3 Logic xác định check_in / check_out
-- [ ] Buổi sáng (trước 12:00) → `check_in`
-- [ ] Buổi chiều (từ 12:00) → `check_out`
-- [ ] Cooldown: cùng `user_id` không ghi lại trong `COOLDOWN_SECONDS` giây
+### 2.3 Logic xác định check_in / check_out ✅
+- [x] Đã có trong `main.py`: trước 12:00 → `check_in`, từ 12:00 → `check_out`
+- [x] Cooldown theo `COOLDOWN_SECONDS` trong `.env`
 
 ### Lệnh
 ```bash
@@ -426,7 +425,7 @@ Cấu hình `check_in_time`, `check_out_time`, `late_tolerance` được set tro
 | Sprint | Nội dung | Trạng thái |
 |---|---|---|
 | Sprint 1 | Cài đặt & Test cơ bản | ✅ Hoàn thành |
-| Sprint 2 | Nhận diện khuôn mặt cục bộ | ⬜ Cần test thực tế |
+| Sprint 2 | Nhận diện khuôn mặt cục bộ | ✅ Hoàn thành |
 | Sprint 3 | Kết nối API Laravel | ⬜ Cần test thực tế |
 | Sprint 4 | Offline buffer & sync | ⬜ Cần test thực tế |
 | Sprint 5 | PyQt5 Touchscreen UI | ⬜ Chưa bắt đầu |

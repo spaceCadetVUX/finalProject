@@ -1,9 +1,9 @@
 import cv2
 import numpy as np
-from PyQt5.QtCore import Qt, QTimer, pyqtSignal
+from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QPropertyAnimation, QEasingCurve
 from PyQt5.QtGui import QFont, QImage, QPixmap, QLinearGradient, QColor, QPainter, QBrush
-from PyQt5.QtWidgets import (QFrame, QHBoxLayout, QLabel, QPushButton,
-                              QVBoxLayout, QWidget)
+from PyQt5.QtWidgets import (QFrame, QGraphicsOpacityEffect, QHBoxLayout, QLabel,
+                              QPushButton, QVBoxLayout, QWidget)
 
 RESULT_MS  = 4_000
 TIMEOUT_MS = 600_000
@@ -13,6 +13,13 @@ STATUS_MAP = {
     "late":        ("#d29922", "LATE"),
     "early_leave": ("#f85149", "EARLY LEAVE"),
     "offline":     ("#8b949e", "SAVED OFFLINE"),
+}
+
+ROLE_MAP = {
+    "super_admin": "Quản trị hệ thống",
+    "admin":       "Quản trị viên",
+    "manager":     "Quản lý",
+    "employee":    "Nhân viên",
 }
 
 
@@ -40,6 +47,7 @@ class ActiveScreen(QWidget):
         self._timeout_timer.setSingleShot(True)
         self._timeout_timer.timeout.connect(self.timed_out)
         self._setup_ui()
+        self._setup_animation()
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -62,129 +70,168 @@ class ActiveScreen(QWidget):
         self.cam_label.setStyleSheet("background: #080c14;")
         root.addWidget(self.cam_label)
 
-        # Subtle vertical divider
         div = QFrame()
         div.setFrameShape(QFrame.VLine)
         div.setFixedWidth(1)
-        div.setStyleSheet("background: rgba(255,255,255,0.08); border: none;")
+        div.setStyleSheet("background: rgba(255,255,255,0.07); border: none;")
         root.addWidget(div)
 
-        # ── Right: info panel ─────────────────────────────────────────────
+        # ── Right panel ───────────────────────────────────────────────────
         right = QWidget()
         right.setStyleSheet("background: transparent;")
         rl = QVBoxLayout(right)
-        rl.setContentsMargins(32, 28, 32, 20)
-        rl.setSpacing(10)
+        rl.setContentsMargins(32, 24, 32, 20)
+        rl.setSpacing(0)
         root.addWidget(right, 1)
 
-        # Person info
+        # ── Top: online badge ─────────────────────────────────────────────
+        top_row = QHBoxLayout()
+        top_row.addStretch()
+        self.online_badge = QLabel("● ONLINE")
+        self.online_badge.setStyleSheet("""
+            color: #3fb950; font-size: 11px; font-weight: bold; letter-spacing: 2px;
+            background: rgba(63,185,80,0.12); border: 1px solid rgba(63,185,80,0.25);
+            border-radius: 8px; padding: 3px 10px;
+        """)
+        top_row.addWidget(self.online_badge)
+        rl.addLayout(top_row)
+
+        rl.addSpacing(20)
+
+        # ── Info block (animatable) ───────────────────────────────────────
+        self.info_widget = QWidget()
+        self.info_widget.setStyleSheet("background: transparent;")
+        info_layout = QVBoxLayout(self.info_widget)
+        info_layout.setContentsMargins(0, 0, 0, 0)
+        info_layout.setSpacing(4)
+
         self.name_label = QLabel("Chờ nhận diện...")
-        self.name_label.setFont(QFont("Arial", 26, QFont.Light))
-        self.name_label.setStyleSheet("color: rgba(255,255,255,0.35); letter-spacing: 1px;")
+        self.name_label.setFont(QFont("Arial", 28, QFont.Light))
+        self.name_label.setStyleSheet("color: rgba(255,255,255,0.3); letter-spacing: 1px;")
         self.name_label.setWordWrap(True)
-        rl.addWidget(self.name_label)
+        info_layout.addWidget(self.name_label)
+
+        self.role_label = QLabel()
+        self.role_label.setStyleSheet(
+            "color: rgba(255,255,255,0.45); font-size: 14px; letter-spacing: 1px;")
+        info_layout.addWidget(self.role_label)
+
+        self.dept_label = QLabel()
+        self.dept_label.setStyleSheet(
+            "color: #58a6ff; font-size: 13px; letter-spacing: 1px;")
+        info_layout.addWidget(self.dept_label)
+
+        info_layout.addSpacing(8)
 
         self.code_label = QLabel()
         self.code_label.setStyleSheet(
-            "color: rgba(255,255,255,0.3); font-size: 13px; letter-spacing: 2px;")
-        rl.addWidget(self.code_label)
+            "color: rgba(255,255,255,0.2); font-size: 12px; letter-spacing: 2px;")
+        info_layout.addWidget(self.code_label)
 
         self.conf_label = QLabel()
         self.conf_label.setStyleSheet(
-            "color: rgba(255,255,255,0.25); font-size: 12px; letter-spacing: 1px;")
-        rl.addWidget(self.conf_label)
+            "color: rgba(255,255,255,0.18); font-size: 11px; letter-spacing: 1px;")
+        info_layout.addWidget(self.conf_label)
 
-        rl.addSpacing(4)
+        rl.addWidget(self.info_widget)
+
+        rl.addSpacing(20)
+
+        # ── Divider ───────────────────────────────────────────────────────
+        self._add_divider(rl)
+        rl.addSpacing(16)
+
+        # ── Today attendance block ────────────────────────────────────────
+        today_title = QLabel("ĐIỂM DANH HÔM NAY")
+        today_title.setStyleSheet(
+            "color: rgba(255,255,255,0.2); font-size: 10px; letter-spacing: 3px;")
+        rl.addWidget(today_title)
+        rl.addSpacing(10)
+
+        ci_row = QHBoxLayout()
+        ci_icon = QLabel("↑")
+        ci_icon.setFixedWidth(20)
+        ci_icon.setStyleSheet("color: #3fb950; font-size: 16px; font-weight: bold;")
+        ci_label = QLabel("VÀO LÀM")
+        ci_label.setStyleSheet(
+            "color: rgba(255,255,255,0.35); font-size: 12px; letter-spacing: 2px;")
+        self.ci_time = QLabel("—")
+        self.ci_time.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.ci_time.setStyleSheet(
+            "color: rgba(255,255,255,0.7); font-size: 18px; font-weight: 300; letter-spacing: 2px;")
+        ci_row.addWidget(ci_icon)
+        ci_row.addWidget(ci_label)
+        ci_row.addStretch()
+        ci_row.addWidget(self.ci_time)
+        rl.addLayout(ci_row)
+
+        rl.addSpacing(8)
+
+        co_row = QHBoxLayout()
+        co_icon = QLabel("↓")
+        co_icon.setFixedWidth(20)
+        co_icon.setStyleSheet("color: #58a6ff; font-size: 16px; font-weight: bold;")
+        co_label = QLabel("RA VỀ")
+        co_label.setStyleSheet(
+            "color: rgba(255,255,255,0.35); font-size: 12px; letter-spacing: 2px;")
+        self.co_time = QLabel("—")
+        self.co_time.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.co_time.setStyleSheet(
+            "color: rgba(255,255,255,0.7); font-size: 18px; font-weight: 300; letter-spacing: 2px;")
+        co_row.addWidget(co_icon)
+        co_row.addWidget(co_label)
+        co_row.addStretch()
+        co_row.addWidget(self.co_time)
+        rl.addLayout(co_row)
+
+        rl.addSpacing(16)
 
         # Result badge
         self.result_label = QLabel()
-        self.result_label.setFixedHeight(36)
+        self.result_label.setFixedHeight(34)
         self.result_label.setAlignment(Qt.AlignCenter)
         self.result_label.setStyleSheet("""
-            background: rgba(255,255,255,0.08);
-            border: 1px solid rgba(255,255,255,0.12);
-            border-radius: 8px;
-            font-size: 13px; font-weight: bold;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px; font-size: 12px; font-weight: bold;
             color: white; letter-spacing: 2px;
         """)
         self.result_label.hide()
         rl.addWidget(self.result_label)
 
-        # Divider
-        line1 = QFrame()
-        line1.setFrameShape(QFrame.HLine)
-        line1.setFixedHeight(1)
-        line1.setStyleSheet("background: rgba(255,255,255,0.08); border: none;")
-        rl.addWidget(line1)
+        rl.addSpacing(16)
+        self._add_divider(rl)
+        rl.addSpacing(14)
 
-        # ── Buttons ──────────────────────────────────────────────────────
+        # ── Action buttons ────────────────────────────────────────────────
         btn_row = QHBoxLayout()
         btn_row.setSpacing(12)
 
         self.btn_checkin = QPushButton("↑  VÀO LÀM")
-        self.btn_checkin.setFixedHeight(60)
-        self.btn_checkin.setStyleSheet(self._btn_style("#238636", "#3fb950"))
+        self.btn_checkin.setFixedHeight(54)
+        self.btn_checkin.setStyleSheet(self._btn_style("#3fb950"))
         self.btn_checkin.setEnabled(False)
         self.btn_checkin.clicked.connect(lambda: self.record_requested.emit("check_in"))
         btn_row.addWidget(self.btn_checkin)
 
         self.btn_checkout = QPushButton("↓  RA VỀ")
-        self.btn_checkout.setFixedHeight(60)
-        self.btn_checkout.setStyleSheet(self._btn_style("#1158a7", "#58a6ff"))
+        self.btn_checkout.setFixedHeight(54)
+        self.btn_checkout.setStyleSheet(self._btn_style("#58a6ff"))
         self.btn_checkout.setEnabled(False)
         self.btn_checkout.clicked.connect(lambda: self.record_requested.emit("check_out"))
         btn_row.addWidget(self.btn_checkout)
 
         rl.addLayout(btn_row)
-
-        # Divider
-        line2 = QFrame()
-        line2.setFrameShape(QFrame.HLine)
-        line2.setFixedHeight(1)
-        line2.setStyleSheet("background: rgba(255,255,255,0.08); border: none;")
-        rl.addWidget(line2)
-
-        # ── Log ──────────────────────────────────────────────────────────
-        self.log_title = QLabel("HÔM NAY — 0 LƯỢT")
-        self.log_title.setStyleSheet(
-            "color: rgba(255,255,255,0.25); font-size: 11px; letter-spacing: 3px;")
-        rl.addWidget(self.log_title)
-
-        self._log_rows = []
-        for _ in range(4):
-            row = QLabel()
-            row.setStyleSheet("""
-                color: rgba(255,255,255,0.55); font-size: 12px;
-                background: rgba(255,255,255,0.04);
-                border: 1px solid rgba(255,255,255,0.07);
-                border-radius: 6px; padding: 3px 10px;
-                letter-spacing: 0.5px;
-            """)
-            row.hide()
-            rl.addWidget(row)
-            self._log_rows.append(row)
-
         rl.addStretch()
 
-        # ── Bottom bar ───────────────────────────────────────────────────
+        # ── Bottom: settings ──────────────────────────────────────────────
         bottom = QHBoxLayout()
-        self.online_badge = QLabel("● ONLINE")
-        self.online_badge.setStyleSheet("""
-            color: #3fb950; font-size: 11px; font-weight: bold;
-            letter-spacing: 2px;
-            background: rgba(63,185,80,0.12);
-            border: 1px solid rgba(63,185,80,0.25);
-            border-radius: 8px; padding: 3px 10px;
-        """)
-        bottom.addWidget(self.online_badge)
         bottom.addStretch()
-
         btn_settings = QPushButton("⚙")
         btn_settings.setFixedSize(44, 44)
         btn_settings.setStyleSheet("""
             QPushButton {
-                background: rgba(255,255,255,0.07);
-                color: rgba(255,255,255,0.5);
+                background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.5);
                 border-radius: 22px; font-size: 18px;
                 border: 1px solid rgba(255,255,255,0.12);
             }
@@ -194,24 +241,40 @@ class ActiveScreen(QWidget):
         bottom.addWidget(btn_settings)
         rl.addLayout(bottom)
 
-    def _btn_style(self, bg: str, border: str) -> str:
+    def _add_divider(self, layout):
+        line = QFrame()
+        line.setFrameShape(QFrame.HLine)
+        line.setFixedHeight(1)
+        line.setStyleSheet("background: rgba(255,255,255,0.07); border: none;")
+        layout.addWidget(line)
+
+    def _btn_style(self, color: str) -> str:
         return f"""
             QPushButton {{
-                background: rgba(255,255,255,0.04);
-                color: {border};
-                border-radius: 10px; font-size: 15px; font-weight: bold;
-                border: 1px solid {border};
-                letter-spacing: 2px;
+                background: rgba(255,255,255,0.04); color: {color};
+                border-radius: 10px; font-size: 14px; font-weight: bold;
+                border: 1px solid {color}; letter-spacing: 2px;
             }}
-            QPushButton:pressed {{
-                background: rgba(255,255,255,0.10);
-            }}
+            QPushButton:pressed {{ background: rgba(255,255,255,0.10); }}
             QPushButton:disabled {{
-                background: rgba(255,255,255,0.03);
-                color: rgba(255,255,255,0.15);
-                border: 1px solid rgba(255,255,255,0.08);
+                background: rgba(255,255,255,0.02);
+                color: rgba(255,255,255,0.12);
+                border: 1px solid rgba(255,255,255,0.07);
             }}
         """
+
+    def _setup_animation(self):
+        self._opacity_effect = QGraphicsOpacityEffect(self.info_widget)
+        self.info_widget.setGraphicsEffect(self._opacity_effect)
+        self._fade_anim = QPropertyAnimation(self._opacity_effect, b"opacity")
+        self._fade_anim.setDuration(350)
+        self._fade_anim.setEasingCurve(QEasingCurve.OutCubic)
+
+    def _fade_in(self):
+        self._fade_anim.stop()
+        self._fade_anim.setStartValue(0.0)
+        self._fade_anim.setEndValue(1.0)
+        self._fade_anim.start()
 
     def set_frame(self, frame: np.ndarray):
         h = max(self.height(), 480)
@@ -226,9 +289,13 @@ class ActiveScreen(QWidget):
         self._timeout_timer.start(TIMEOUT_MS)
         self.name_label.setText("Chờ nhận diện...")
         self.name_label.setStyleSheet(
-            "color: rgba(255,255,255,0.3); font-size: 26px; font-weight: 300; letter-spacing: 1px;")
+            "color: rgba(255,255,255,0.25); font-size: 28px; font-weight: 300;")
+        self.role_label.setText("")
+        self.dept_label.setText("")
         self.code_label.setText("")
         self.conf_label.setText("")
+        self.ci_time.setText("—")
+        self.co_time.setText("—")
         self.result_label.hide()
         self.btn_checkin.setEnabled(False)
         self.btn_checkout.setEnabled(False)
@@ -236,27 +303,48 @@ class ActiveScreen(QWidget):
     def show_person(self, data: dict):
         self._current_person = data
         self._timeout_timer.start(TIMEOUT_MS)
+
         self.name_label.setText(data.get("name", f"User {data['user_id']}").upper())
         self.name_label.setStyleSheet(
-            "color: #ffffff; font-size: 26px; font-weight: 300; letter-spacing: 2px;")
+            "color: #ffffff; font-size: 28px; font-weight: 300; letter-spacing: 2px;")
+
+        role = ROLE_MAP.get(data.get("role", ""), data.get("role", ""))
+        self.role_label.setText(role.upper() if role else "")
+
+        dept = data.get("department") or ""
+        self.dept_label.setText(dept.upper() if dept else "")
+
         code = data.get("code", "")
-        self.code_label.setText(
-            f"#{code}  ·  ID {data['user_id']}" if code else f"ID {data['user_id']}")
+        self.code_label.setText(f"#{code}  ·  ID {data['user_id']}" if code else f"ID {data['user_id']}")
         self.conf_label.setText(f"ĐỘ CHÍNH XÁC  {data.get('confidence', 0):.0%}")
+
+        self.ci_time.setText(data.get("check_in_at") or "—")
+        self.co_time.setText(data.get("check_out_at") or "—")
+
         self.result_label.hide()
         self.btn_checkin.setEnabled(True)
         self.btn_checkout.setEnabled(True)
+        self._fade_in()
 
     def show_result(self, data: dict, status: str):
         rtype  = data.get("record_type", "check_in")
         color, badge = STATUS_MAP.get(status, ("#58a6ff", status.upper()))
         icon   = "↑" if rtype == "check_in" else "↓"
         action = "VÀO LÀM" if rtype == "check_in" else "RA VỀ"
+
+        if rtype == "check_in":
+            from datetime import datetime
+            self.ci_time.setText(datetime.now().strftime("%H:%M"))
+            self._current_person = {**data, "check_in_at": datetime.now().strftime("%H:%M")}
+        else:
+            from datetime import datetime
+            self.co_time.setText(datetime.now().strftime("%H:%M"))
+            self._current_person = {**data, "check_out_at": datetime.now().strftime("%H:%M")}
+
         self.result_label.setText(f"{icon}  {action}  ·  {badge}")
         self.result_label.setStyleSheet(f"""
-            background: rgba(255,255,255,0.06);
-            border: 1px solid {color};
-            border-radius: 8px; font-size: 13px; font-weight: bold;
+            background: rgba(255,255,255,0.05); border: 1px solid {color};
+            border-radius: 8px; font-size: 12px; font-weight: bold;
             color: {color}; letter-spacing: 2px;
         """)
         self.result_label.show()
@@ -266,44 +354,25 @@ class ActiveScreen(QWidget):
         self._result_timer.timeout.disconnect() if self._result_timer.receivers(
             self._result_timer.timeout) > 0 else None
         self._result_timer.timeout.connect(
-            lambda: self.show_person(data) if self._current_person else None)
+            lambda: self.show_person(self._current_person) if self._current_person else None)
         self._result_timer.start(RESULT_MS)
 
     def update_log(self, entries: list):
-        count = len(entries)
-        self.log_title.setText(f"HÔM NAY — {count} LƯỢT")
-        recent = list(reversed(entries[-4:]))
-        for i, row in enumerate(self._log_rows):
-            if i < len(recent):
-                e = recent[i]
-                icon = "↑" if e["type"] == "check_in" else "↓"
-                dot  = {"present": "●", "late": "●",
-                        "early_leave": "●", "offline": "●"}.get(e["status"], "●")
-                color = {"present": "#3fb950", "late": "#d29922",
-                         "early_leave": "#f85149", "offline": "#8b949e"}.get(e["status"], "#fff")
-                row.setText(f"{icon} {e['name']}  <span style='color:{color}'>{dot}</span>  {e['time']}")
-                row.setTextFormat(Qt.RichText)
-                row.show()
-            else:
-                row.hide()
+        pass  # log per-person now shown in the today block
 
     def set_online(self, online: bool):
         if online:
             self.online_badge.setText("● ONLINE")
             self.online_badge.setStyleSheet("""
-                color: #3fb950; font-size: 11px; font-weight: bold;
-                letter-spacing: 2px;
-                background: rgba(63,185,80,0.12);
-                border: 1px solid rgba(63,185,80,0.25);
+                color: #3fb950; font-size: 11px; font-weight: bold; letter-spacing: 2px;
+                background: rgba(63,185,80,0.12); border: 1px solid rgba(63,185,80,0.25);
                 border-radius: 8px; padding: 3px 10px;
             """)
         else:
             self.online_badge.setText("● OFFLINE")
             self.online_badge.setStyleSheet("""
-                color: #f85149; font-size: 11px; font-weight: bold;
-                letter-spacing: 2px;
-                background: rgba(248,81,73,0.12);
-                border: 1px solid rgba(248,81,73,0.25);
+                color: #f85149; font-size: 11px; font-weight: bold; letter-spacing: 2px;
+                background: rgba(248,81,73,0.12); border: 1px solid rgba(248,81,73,0.25);
                 border-radius: 8px; padding: 3px 10px;
             """)
 

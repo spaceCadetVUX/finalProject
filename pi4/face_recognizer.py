@@ -5,10 +5,12 @@ import numpy as np
 
 class FaceRecognizer:
     def __init__(self):
-        self._encodings: list[np.ndarray] = []
-        self._user_ids:  list[int] = []
-        self._names:     list[str] = []
-        self._codes:     list[str] = []
+        self._encodings:    list[np.ndarray] = []
+        self._user_ids:     list[int] = []
+        self._names:        list[str] = []
+        self._codes:        list[str] = []
+        self._roles:        list[str] = []
+        self._departments:  list[str] = []
 
     def load_from_file(self, path: str):
         """Nạp encoding từ file JSON local (dùng khi offline hoàn toàn)."""
@@ -18,10 +20,12 @@ class FaceRecognizer:
 
     def load_encodings(self, records: list[dict]):
         """Nạp danh sách encoding từ server vào bộ nhớ."""
-        self._encodings = [np.array(r["encoding"]) for r in records]
-        self._user_ids  = [r["user_id"] for r in records]
-        self._names     = [r.get("name", f"User {r['user_id']}") for r in records]
-        self._codes     = [r.get("code", "") for r in records]
+        self._encodings   = [np.array(r["encoding"]) for r in records]
+        self._user_ids    = [r["user_id"] for r in records]
+        self._names       = [r.get("name", f"User {r['user_id']}") for r in records]
+        self._codes       = [r.get("code", "") for r in records]
+        self._roles       = [r.get("role", "") for r in records]
+        self._departments = [r.get("department", "") for r in records]
         print(f"[FaceRecognizer] Đã nạp {len(self._encodings)} encoding")
 
     def update_encoding(self, record: dict):
@@ -30,6 +34,8 @@ class FaceRecognizer:
         self._user_ids.append(record["user_id"])
         self._names.append(record.get("name", f"User {record['user_id']}"))
         self._codes.append(record.get("code", ""))
+        self._roles.append(record.get("role", ""))
+        self._departments.append(record.get("department", ""))
 
     def recognize(self, frame_rgb: np.ndarray, tolerance: float = 0.5) -> list[dict]:
         return [d for d in self.recognize_all(frame_rgb, tolerance) if d["recognized"]]
@@ -61,6 +67,8 @@ class FaceRecognizer:
                         "user_id":    self._user_ids[best_idx],
                         "name":       self._names[best_idx],
                         "code":       self._codes[best_idx],
+                        "role":       self._roles[best_idx],
+                        "department": self._departments[best_idx],
                         "confidence": round(1.0 - best_dist, 4),
                     })
                 else:

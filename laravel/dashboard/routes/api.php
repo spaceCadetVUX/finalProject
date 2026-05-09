@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\EncodingController;
 use App\Http\Controllers\Api\AttendanceApiController;
 use App\Http\Controllers\Api\DevicePingController;
 use App\Http\Controllers\Api\EmployeeApiController;
+use App\Http\Controllers\Api\AttendanceTodayController;
 
 /*
 |--------------------------------------------------------------------------
@@ -30,6 +31,9 @@ Route::middleware('device.token')->group(function () {
 
     // Thêm nhân viên mới từ Pi4 (Pi tự encode, gửi encoding lên)
     Route::post('/employees', [EmployeeApiController::class, 'store']);
+
+    // Lấy điểm danh hôm nay của 1 nhân viên (dùng cho màn hình Pi)
+    Route::get('/attendance/today/{user_id}', AttendanceTodayController::class);
 });
 
 /*

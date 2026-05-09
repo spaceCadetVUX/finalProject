@@ -228,9 +228,13 @@ class MainWindow(QMainWindow):
 
     def _on_person_identified(self, data: dict):
         self._clear_timer.stop()
+        uid = data["user_id"]
+        if uid != (self._current_person or {}).get("user_id"):
+            today = api_client.fetch_today_attendance(uid)
+            data = {**data, **today}
         self._current_person = data
         idx = self.stack.currentIndex()
-        if idx == 0:  # chỉ auto-switch từ idle, không phá settings/add_employee
+        if idx == 0:
             self.cam_thread.set_mode("active")
             self.stack.setCurrentIndex(1)
         if idx == 1:

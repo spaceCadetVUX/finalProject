@@ -93,6 +93,18 @@ def post_batch(records: list[dict]) -> int:
     return 0
 
 
+def fetch_today_attendance(user_id: int) -> dict:
+    """Lấy điểm danh hôm nay của nhân viên. Trả về {check_in_at, check_out_at, status}."""
+    try:
+        resp = requests.get(f"{SERVER_URL}/api/attendance/today/{user_id}",
+                            headers=HEADERS, timeout=5)
+        if resp.status_code == 200:
+            return resp.json()
+    except requests.RequestException:
+        pass
+    return {"check_in_at": None, "check_out_at": None, "status": None}
+
+
 def ping() -> bool:
     try:
         resp = requests.post(f"{SERVER_URL}/api/device/ping",

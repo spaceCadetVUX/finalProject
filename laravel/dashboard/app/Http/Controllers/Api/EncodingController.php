@@ -10,7 +10,7 @@ class EncodingController extends Controller
 {
     public function index(Request $request)
     {
-        $query = FaceEncoding::with('user:id,name,code')
+        $query = FaceEncoding::with('user:id,name,code,role,department_id', 'user.department:id,name')
             ->whereHas('user', fn ($q) => $q->whereNull('deleted_at'));
 
         if ($request->filled('updated_since')) {
@@ -19,11 +19,13 @@ class EncodingController extends Controller
         }
 
         $encodings = $query->get()->map(fn ($fe) => [
-            'id'       => $fe->id,
-            'user_id'  => $fe->user_id,
-            'name'     => $fe->user->name,
-            'code'     => $fe->user->code,
-            'encoding' => $fe->encoding,
+            'id'         => $fe->id,
+            'user_id'    => $fe->user_id,
+            'name'       => $fe->user->name,
+            'code'       => $fe->user->code,
+            'role'       => $fe->user->role,
+            'department' => $fe->user->department?->name,
+            'encoding'   => $fe->encoding,
         ]);
 
         return response()->json($encodings);

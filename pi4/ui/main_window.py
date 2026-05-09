@@ -243,6 +243,7 @@ class MainWindow(QMainWindow):
         uid = person["user_id"]
         now = time.time()
         if now - self._cooldown.get((uid, rtype), 0) < COOLDOWN_SECONDS:
+            self.active.show_already_recorded(rtype)
             return
         self._cooldown[(uid, rtype)] = now
 

@@ -229,10 +229,12 @@ class MainWindow(QMainWindow):
     def _on_person_identified(self, data: dict):
         self._clear_timer.stop()
         self._current_person = data
-        if self.stack.currentIndex() != 1:
+        idx = self.stack.currentIndex()
+        if idx == 0:  # chỉ auto-switch từ idle, không phá settings/add_employee
             self.cam_thread.set_mode("active")
             self.stack.setCurrentIndex(1)
-        self.active.show_person(data)
+        if idx == 1:
+            self.active.show_person(data)
 
     def _on_person_cleared(self):
         self._clear_timer.start(2000)

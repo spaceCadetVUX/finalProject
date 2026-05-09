@@ -19,7 +19,7 @@ from ui.add_employee_screen import AddEmployeeScreen
 from ui.idle_screen import IdleScreen
 from ui.settings_screen import SettingsScreen
 
-FRAME_INTERVAL = 1 / 20  # cap 20 FPS cho camera feed
+FRAME_INTERVAL = 1 / 15  # cap 15 FPS cho camera feed
 
 
 class CameraThread(QThread):
@@ -198,9 +198,7 @@ class MainWindow(QMainWindow):
         self.add_employee.employee_added.connect(self._on_employee_added)
 
         self.cam_thread = CameraThread(self.recognizer)
-        self.cam_thread.new_frame.connect(self.idle.set_frame)
-        self.cam_thread.new_frame.connect(self.active.set_frame)
-        self.cam_thread.new_frame.connect(self.add_employee.set_frame)
+        self.cam_thread.new_frame.connect(self._dispatch_frame)
         self.cam_thread.person_identified.connect(self._on_person_identified)
         self.cam_thread.person_cleared.connect(self._on_person_cleared)
         self.cam_thread.start()
@@ -209,6 +207,15 @@ class MainWindow(QMainWindow):
         self.sync_thread.online_status.connect(self.idle.set_online)
         self.sync_thread.online_status.connect(self.active.set_online)
         self.sync_thread.start()
+
+    def _dispatch_frame(self, frame):
+        idx = self.stack.currentIndex()
+        if idx == 0:
+            self.idle.set_frame(frame)
+        elif idx == 1:
+            self.active.set_frame(frame)
+        elif idx == 3:
+            self.add_employee.set_frame(frame)
 
     def _show_idle(self):
         self.cam_thread.set_mode("idle")

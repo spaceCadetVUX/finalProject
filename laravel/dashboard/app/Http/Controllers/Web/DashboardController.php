@@ -63,11 +63,12 @@ class DashboardController extends Controller
 
     private function buildRecentRows(): array
     {
-        return Attendance::with('user:id,name,code,avatar')
+        return Attendance::with(['user' => fn ($q) => $q->withTrashed()->select('id', 'name', 'code', 'avatar')])
             ->whereNotNull('check_in_at')
             ->orderByDesc('check_in_at')
             ->limit(10)
             ->get()
+            ->filter(fn ($a) => $a->user !== null)
             ->map(fn ($a) => [
                 'name'     => $a->user->name,
                 'code'     => $a->user->code,
@@ -77,6 +78,7 @@ class DashboardController extends Controller
                 'initials' => strtoupper(substr($a->user->name, 0, 2)),
                 'avatar'   => $a->user->avatar ? Storage::url($a->user->avatar) : null,
             ])
+            ->values()
             ->all();
     }
 }

@@ -224,7 +224,8 @@ class MainWindow(QMainWindow):
         if idx == 0:
             self.cam_thread.set_mode("active")
             self.stack.setCurrentIndex(1)
-        if idx == 1:
+            self.active.show_person(data)
+        elif idx == 1:
             self.active.show_person(data)
 
     def _on_person_cleared(self):

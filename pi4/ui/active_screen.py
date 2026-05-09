@@ -29,6 +29,7 @@ def _crop_fill(frame: np.ndarray, target_w: int, target_h: int) -> np.ndarray:
 class ActiveScreen(QWidget):
     record_requested = pyqtSignal(str)   # "check_in" hoặc "check_out"
     timed_out        = pyqtSignal()
+    settings_clicked = pyqtSignal()
 
     def __init__(self):
         super().__init__()
@@ -141,10 +142,26 @@ class ActiveScreen(QWidget):
 
         rl.addStretch()
 
-        # online badge
+        # ── Bottom bar: online badge + settings ───────────────────────────
+        bottom = QHBoxLayout()
         self.online_badge = QLabel("● ONLINE")
         self.online_badge.setStyleSheet("color: #1a7f37; font-size: 12px;")
-        rl.addWidget(self.online_badge)
+        bottom.addWidget(self.online_badge)
+        bottom.addStretch()
+
+        btn_settings = QPushButton("⚙")
+        btn_settings.setFixedSize(44, 44)
+        btn_settings.setStyleSheet("""
+            QPushButton {
+                background: #f6f8fa; color: #57606a;
+                border-radius: 22px; font-size: 20px;
+                border: 1px solid #d0d7de;
+            }
+            QPushButton:pressed { background: #d0d7de; }
+        """)
+        btn_settings.clicked.connect(self.settings_clicked)
+        bottom.addWidget(btn_settings)
+        rl.addLayout(bottom)
 
     def _btn_style(self, bg: str, fg: str) -> str:
         return f"""

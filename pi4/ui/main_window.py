@@ -187,6 +187,7 @@ class MainWindow(QMainWindow):
 
         self.idle.settings_clicked.connect(lambda: self.stack.setCurrentIndex(2))
         self.idle.screen_tapped.connect(self._on_tap_idle)
+        self.active.settings_clicked.connect(lambda: self.stack.setCurrentIndex(2))
         self.active.record_requested.connect(self._on_record_requested)
         self.active.timed_out.connect(self._show_idle)
         self.settings.back_clicked.connect(self._show_idle)

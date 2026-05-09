@@ -219,6 +219,14 @@ class MainWindow(QMainWindow):
         if uid != (self._current_person or {}).get("user_id"):
             today = api_client.fetch_today_attendance(uid)
             data = {**data, **today}
+        else:
+            # giữ lại thời gian check-in/out đã có
+            prev = self._current_person or {}
+            data = {
+                **data,
+                "check_in_at":  prev.get("check_in_at"),
+                "check_out_at": prev.get("check_out_at"),
+            }
         self._current_person = data
         idx = self.stack.currentIndex()
         if idx == 0:

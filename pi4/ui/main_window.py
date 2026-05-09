@@ -90,20 +90,7 @@ class CameraThread(QThread):
                 time.sleep(0.1)
                 continue
 
-            with self._faces_lock:
-                faces = list(self._last_faces)
-
-            annotated = frame.copy()
-            for face in faces:
-                t, r, b, l = face["location"]
-                color = (0, 180, 0) if face["recognized"] else (0, 0, 210)
-                cv2.rectangle(annotated, (l, t), (r, b), color, 2)
-                label = (f"{face['name']} {face['confidence']:.0%}"
-                         if face["recognized"] else "Unknown")
-                cv2.putText(annotated, label, (l, max(t - 8, 0)),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
-
-            self.new_frame.emit(annotated)
+            self.new_frame.emit(frame)
             frame_count += 1
 
             skip = PROCESS_EVERY_N if self._mode == "active" else PROCESS_EVERY_N * 4

@@ -62,12 +62,43 @@ class ActiveScreen(QWidget):
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
 
-        # ── Left: camera ──────────────────────────────────────────────────
-        self.cam_label = QLabel()
-        self.cam_label.setFixedWidth(400)
+        # ── Left: camera + overlay ────────────────────────────────────────
+        cam_container = QWidget()
+        cam_container.setFixedWidth(400)
+        cam_container.setStyleSheet("background: #080c14;")
+        root.addWidget(cam_container)
+
+        self.cam_label = QLabel(cam_container)
+        self.cam_label.setGeometry(0, 0, 400, 600)
         self.cam_label.setAlignment(Qt.AlignCenter)
-        self.cam_label.setStyleSheet("background: #080c14;")
-        root.addWidget(self.cam_label)
+        self.cam_label.setStyleSheet("background: transparent;")
+
+        # Overlay bên dưới camera
+        self.cam_overlay = QWidget(cam_container)
+        self.cam_overlay.setGeometry(0, 0, 400, 90)
+        self.cam_overlay.setStyleSheet("background: transparent;")
+        self.cam_overlay.hide()
+
+        ov_layout = QVBoxLayout(self.cam_overlay)
+        ov_layout.setContentsMargins(16, 10, 16, 10)
+        ov_layout.setSpacing(4)
+
+        self.ov_ci = QLabel()
+        self.ov_ci.setStyleSheet("""
+            color: white; font-size: 13px; letter-spacing: 1px;
+            background: rgba(63,185,80,0.25);
+            border: 1px solid rgba(63,185,80,0.5);
+            border-radius: 6px; padding: 3px 10px;
+        """)
+        self.ov_co = QLabel()
+        self.ov_co.setStyleSheet("""
+            color: white; font-size: 13px; letter-spacing: 1px;
+            background: rgba(88,166,255,0.2);
+            border: 1px solid rgba(88,166,255,0.4);
+            border-radius: 6px; padding: 3px 10px;
+        """)
+        ov_layout.addWidget(self.ov_ci)
+        ov_layout.addWidget(self.ov_co)
 
         div = QFrame()
         div.setFrameShape(QFrame.VLine)
@@ -286,6 +317,12 @@ class ActiveScreen(QWidget):
     def _hide_banner(self):
         self.result_banner.hide()
 
+    def resizeEvent(self, event):
+        h = self.height()
+        self.cam_label.setGeometry(0, 0, 400, h)
+        self.cam_overlay.setGeometry(0, h - 90, 400, 90)
+        super().resizeEvent(event)
+
     def set_frame(self, frame: np.ndarray):
         h = max(self.height(), 480)
         cropped = _crop_fill(frame, 400, h)
@@ -298,6 +335,7 @@ class ActiveScreen(QWidget):
         self._current_person = None
         self._timeout_timer.start(TIMEOUT_MS)
         self._hide_banner()
+        self.cam_overlay.hide()
         self.name_label.setText("Chờ nhận diện...")
         self.name_label.setFont(QFont("Arial", 34, QFont.Bold))
         self.name_label.setStyleSheet("color: rgba(255,255,255,0.2);")
@@ -330,8 +368,15 @@ class ActiveScreen(QWidget):
         self.code_label.setText(f"#{code}" if code else f"ID {data['user_id']}")
         self.conf_label.setText(f"ĐỘ CHÍNH XÁC  {data.get('confidence', 0):.0%}")
 
-        self.ci_time.setText(data.get("check_in_at") or "—")
-        self.co_time.setText(data.get("check_out_at") or "—")
+        ci = data.get("check_in_at") or "—"
+        co = data.get("check_out_at") or "—"
+        self.ci_time.setText(ci)
+        self.co_time.setText(co)
+
+        self.ov_ci.setText(f"↑  VÀO LÀM   {ci}")
+        self.ov_co.setText(f"↓  RA VỀ      {co}")
+        self.cam_overlay.show()
+        self.cam_overlay.raise_()
 
         self.btn_checkin.setEnabled(True)
         self.btn_checkout.setEnabled(True)
@@ -346,13 +391,14 @@ class ActiveScreen(QWidget):
         rtype  = data.get("record_type", "check_in")
         color, msg = STATUS_MAP.get(status, ("#58a6ff", "✓  HOÀN TẤT"))
 
+        t = datetime.now().strftime("%H:%M")
         if rtype == "check_in":
-            t = datetime.now().strftime("%H:%M")
             self.ci_time.setText(t)
+            self.ov_ci.setText(f"↑  VÀO LÀM   {t}")
             self._current_person = {**data, "check_in_at": t}
         else:
-            t = datetime.now().strftime("%H:%M")
             self.co_time.setText(t)
+            self.ov_co.setText(f"↓  RA VỀ      {t}")
             self._current_person = {**data, "check_out_at": t}
 
         self._show_banner(msg, color)

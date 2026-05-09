@@ -1,4 +1,5 @@
 import os
+import sys
 
 from dotenv import dotenv_values, set_key
 from PyQt5.QtCore import pyqtSignal
@@ -77,6 +78,12 @@ class SettingsScreen(QWidget):
 
         root.addLayout(btn_row)
 
+        btn_restart = QPushButton("🔄  Khởi động lại")
+        btn_restart.setFixedHeight(48)
+        btn_restart.setStyleSheet(self._btn("#9a6700", "white"))
+        btn_restart.clicked.connect(self._restart)
+        root.addWidget(btn_restart)
+
     def _field(self, parent_layout, label: str, masked=False) -> QLineEdit:
         lbl = QLabel(label)
         lbl.setStyleSheet("color: #57606a; font-size: 13px;")
@@ -135,6 +142,9 @@ class SettingsScreen(QWidget):
             self._set_status(f"✓ OK — {result.get('name')}", "#1a7f37")
         else:
             self._set_status("✗ Không kết nối được server", "#cf222e")
+
+    def _restart(self):
+        os.execv(sys.executable, [sys.executable] + sys.argv)
 
     def _set_status(self, msg: str, color: str):
         self.status.setText(msg)

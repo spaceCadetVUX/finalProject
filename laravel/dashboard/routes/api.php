@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\AttendanceApiController;
 use App\Http\Controllers\Api\DevicePingController;
 use App\Http\Controllers\Api\EmployeeApiController;
 use App\Http\Controllers\Api\AttendanceTodayController;
+use App\Http\Controllers\Api\ShiftActiveController;
 
 /*
 |--------------------------------------------------------------------------
@@ -34,6 +35,9 @@ Route::middleware('device.token')->group(function () {
 
     // Lấy điểm danh hôm nay của 1 nhân viên (dùng cho màn hình Pi)
     Route::get('/attendance/today/{user_id}', AttendanceTodayController::class);
+
+    // Lấy ca làm việc đang active hôm nay của 1 nhân viên
+    Route::get('/shifts/active/{user_id}', ShiftActiveController::class);
 });
 
 /*

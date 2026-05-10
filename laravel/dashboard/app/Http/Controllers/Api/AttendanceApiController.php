@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
+use App\Models\ShiftSchedule;
 use App\Models\User;
 use App\Services\AttendanceStatusService;
 use Illuminate\Http\Request;
@@ -17,11 +18,12 @@ class AttendanceApiController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'user_id'     => 'required|integer|exists:users,id',
-            'type'        => 'required|in:check_in,check_out',
-            'confidence'  => 'required|numeric|between:0,1',
-            'recorded_at' => 'required',
-            'image'       => 'nullable|string',
+            'user_id'           => 'required|integer|exists:users,id',
+            'type'              => 'required|in:check_in,check_out',
+            'confidence'        => 'required|numeric|between:0,1',
+            'recorded_at'       => 'required',
+            'image'             => 'nullable|string',
+            'shift_schedule_id' => 'nullable|integer|exists:shift_schedules,id',
         ]);
 
         $device     = $request->attributes->get('device');
@@ -38,17 +40,21 @@ class AttendanceApiController extends Controller
             $imagePath = $this->saveImage($data['image'], $data['user_id'], $workDate, $data['type']);
         }
 
-        $attendance = Attendance::firstOrCreate(
-            ['user_id' => $data['user_id'], 'work_date' => $workDate],
-            ['device_id' => $device->id, 'status' => 'absent']
+        $shift = !empty($data['shift_schedule_id'])
+            ? ShiftSchedule::with('template')->find($data['shift_schedule_id'])
+            : null;
+
+        $attendance = $this->findOrCreateAttendance(
+            $data['user_id'], $workDate, $shift?->id, $device->id
         );
 
-        $this->applyRecord($attendance, $user, $data['type'], $recordedAt, (float) $data['confidence'], $imagePath, $device->id);
+        $this->applyRecord($attendance, $user, $data['type'], $recordedAt, (float) $data['confidence'], $imagePath, $device->id, $shift);
 
         return response()->json([
-            'id'        => $attendance->id,
-            'work_date' => $workDate,
-            'status'    => $attendance->status,
+            'id'                => $attendance->id,
+            'work_date'         => $workDate,
+            'shift_schedule_id' => $attendance->shift_schedule_id,
+            'status'            => $attendance->status,
         ], 201);
     }
 
@@ -69,11 +75,12 @@ class AttendanceApiController extends Controller
 
         foreach ($records as $index => $record) {
             $validator = Validator::make($record, [
-                'user_id'     => 'required|integer|exists:users,id',
-                'type'        => 'required|in:check_in,check_out',
-                'confidence'  => 'required|numeric|between:0,1',
-                'recorded_at' => 'required',
-                'image'       => 'nullable|string',
+                'user_id'           => 'required|integer|exists:users,id',
+                'type'              => 'required|in:check_in,check_out',
+                'confidence'        => 'required|numeric|between:0,1',
+                'recorded_at'       => 'required',
+                'image'             => 'nullable|string',
+                'shift_schedule_id' => 'nullable|integer|exists:shift_schedules,id',
             ]);
 
             if ($validator->fails()) {
@@ -97,12 +104,15 @@ class AttendanceApiController extends Controller
                     $imagePath = $this->saveImage($record['image'], $record['user_id'], $workDate, $record['type']);
                 }
 
-                $attendance = Attendance::firstOrCreate(
-                    ['user_id' => $record['user_id'], 'work_date' => $workDate],
-                    ['device_id' => $device->id, 'status' => 'absent']
+                $shift = !empty($record['shift_schedule_id'])
+                    ? ShiftSchedule::with('template')->find($record['shift_schedule_id'])
+                    : null;
+
+                $attendance = $this->findOrCreateAttendance(
+                    $record['user_id'], $workDate, $shift?->id, $device->id
                 );
 
-                $this->applyRecord($attendance, $user, $record['type'], $recordedAt, (float) $record['confidence'], $imagePath, $device->id);
+                $this->applyRecord($attendance, $user, $record['type'], $recordedAt, (float) $record['confidence'], $imagePath, $device->id, $shift);
                 $saved++;
             } catch (\Throwable $e) {
                 $skipped++;
@@ -117,6 +127,28 @@ class AttendanceApiController extends Controller
         ], 201);
     }
 
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    /**
+     * When shift_schedule_id is given, key on (user_id, work_date, shift_schedule_id)
+     * so employees can have multiple shifts on the same day.
+     * When null, key on (user_id, work_date) — backward-compat for no-shift employees.
+     */
+    private function findOrCreateAttendance(int $userId, string $workDate, ?int $shiftId, int $deviceId): Attendance
+    {
+        if ($shiftId !== null) {
+            return Attendance::firstOrCreate(
+                ['user_id' => $userId, 'work_date' => $workDate, 'shift_schedule_id' => $shiftId],
+                ['device_id' => $deviceId, 'status' => 'absent']
+            );
+        }
+
+        return Attendance::firstOrCreate(
+            ['user_id' => $userId, 'work_date' => $workDate],
+            ['device_id' => $deviceId, 'status' => 'absent']
+        );
+    }
+
     private function applyRecord(
         Attendance $attendance,
         User $user,
@@ -124,14 +156,15 @@ class AttendanceApiController extends Controller
         string $recordedAt,
         float $confidence,
         ?string $imagePath,
-        int $deviceId
+        int $deviceId,
+        ?ShiftSchedule $shift = null
     ): void {
         if ($type === 'check_in') {
             if ($attendance->check_in_at !== null) {
-                return; // already checked in today
+                return;
             }
 
-            $status = $this->statusService->calculateStatus($user, $recordedAt);
+            $status = $this->statusService->calculateStatus($user, $recordedAt, $shift);
 
             $attendance->update([
                 'device_id'           => $deviceId,
@@ -142,13 +175,11 @@ class AttendanceApiController extends Controller
             ]);
         } else {
             if ($attendance->check_out_at !== null) {
-                return; // already checked out today
+                return;
             }
 
-            $checkOutStatus = $this->statusService->calculateCheckOutStatus($user, $recordedAt);
-
-            // early_leave overrides present/late; otherwise keep the check-in status
-            $finalStatus = $checkOutStatus === 'early_leave' ? 'early_leave' : $attendance->status;
+            $checkOutStatus = $this->statusService->calculateCheckOutStatus($user, $recordedAt, $shift);
+            $finalStatus    = $checkOutStatus === 'early_leave' ? 'early_leave' : $attendance->status;
 
             $attendance->update([
                 'check_out_at'         => $recordedAt,
@@ -159,7 +190,6 @@ class AttendanceApiController extends Controller
         }
     }
 
-    // Accept unix timestamp (int/string) or datetime string
     private function parseTimestamp(mixed $value): string
     {
         if (is_numeric($value)) {
@@ -169,7 +199,6 @@ class AttendanceApiController extends Controller
         return date('Y-m-d H:i:s', strtotime((string) $value));
     }
 
-    // Decode base64, save to storage/app/public/attendances/, return relative path
     private function saveImage(string $base64, int $userId, string $workDate, string $type): ?string
     {
         try {

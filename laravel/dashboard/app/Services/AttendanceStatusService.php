@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\ShiftSchedule;
 use App\Models\User;
 
 class AttendanceStatusService
@@ -9,39 +10,48 @@ class AttendanceStatusService
     /**
      * Tính trạng thái check-in: 'present' | 'late'
      *
-     * So sánh giờ check-in với department.check_in_time + late_tolerance (phút).
-     * Nhân viên không thuộc phòng ban nào luôn được tính là present.
+     * Ưu tiên giờ của ca (shift) nếu có, fallback về phòng ban.
+     * Không có ca và không thuộc phòng ban → luôn 'present'.
      */
-    public function calculateStatus(User $user, string $recordedAt): string
+    public function calculateStatus(User $user, string $recordedAt, ?ShiftSchedule $shift = null): string
     {
-        $dept = $user->department;
+        $date = date('Y-m-d', strtotime($recordedAt));
 
+        if ($shift) {
+            $deadline = strtotime("{$date} {$shift->template->check_in_time}")
+                      + ($shift->template->late_tolerance * 60);
+            return strtotime($recordedAt) > $deadline ? 'late' : 'present';
+        }
+
+        $dept = $user->department;
         if (!$dept) {
             return 'present';
         }
 
-        $date         = date('Y-m-d', strtotime($recordedAt));
-        $deadline     = strtotime("{$date} {$dept->check_in_time}") + ($dept->late_tolerance * 60);
-
+        $deadline = strtotime("{$date} {$dept->check_in_time}") + ($dept->late_tolerance * 60);
         return strtotime($recordedAt) > $deadline ? 'late' : 'present';
     }
 
     /**
      * Tính trạng thái check-out: 'present' | 'early_leave'
      *
-     * So sánh giờ check-out với department.check_out_time.
+     * Ưu tiên giờ của ca (shift) nếu có, fallback về phòng ban.
      */
-    public function calculateCheckOutStatus(User $user, string $recordedAt): string
+    public function calculateCheckOutStatus(User $user, string $recordedAt, ?ShiftSchedule $shift = null): string
     {
-        $dept = $user->department;
+        $date = date('Y-m-d', strtotime($recordedAt));
 
+        if ($shift) {
+            $checkoutTime = strtotime("{$date} {$shift->template->check_out_time}");
+            return strtotime($recordedAt) < $checkoutTime ? 'early_leave' : 'present';
+        }
+
+        $dept = $user->department;
         if (!$dept) {
             return 'present';
         }
 
-        $date         = date('Y-m-d', strtotime($recordedAt));
         $checkoutTime = strtotime("{$date} {$dept->check_out_time}");
-
         return strtotime($recordedAt) < $checkoutTime ? 'early_leave' : 'present';
     }
 }

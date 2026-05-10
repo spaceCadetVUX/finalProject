@@ -47,4 +47,10 @@ class User extends Authenticatable
     {
         return $this->role === 'manager';
     }
+
+    public function shiftSchedules()
+    {
+        return $this->hasMany(ShiftSchedule::class, 'assignee_id')
+                    ->where('assignee_type', 'employee');
+    }
 }

@@ -23,4 +23,10 @@ class Department extends Model
     {
         return $this->hasMany(User::class);
     }
+
+    public function shiftSchedules()
+    {
+        return $this->hasMany(ShiftSchedule::class, 'assignee_id')
+                    ->where('assignee_type', 'department');
+    }
 }

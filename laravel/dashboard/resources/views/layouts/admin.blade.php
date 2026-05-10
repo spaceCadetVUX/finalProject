@@ -76,6 +76,18 @@
             </a>
             @endif
 
+            {{-- Ca Làm Việc: admin only --}}
+            @if(in_array($role, ['super_admin', 'admin']))
+            <a href="{{ route('shifts.index') }}"
+               class="flex items-center gap-3 px-3 py-2 rounded-lg {{ request()->routeIs('shifts.*') ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700' }}">
+                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                Ca Làm Việc
+            </a>
+            @endif
+
             {{-- Chấm Công: admin/manager --}}
             @if(in_array($role, ['super_admin', 'admin', 'manager']))
             <a href="{{ route('attendances.index') }}"

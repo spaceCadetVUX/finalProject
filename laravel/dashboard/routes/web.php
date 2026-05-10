@@ -8,6 +8,7 @@ use App\Http\Controllers\Web\DeviceController;
 use App\Http\Controllers\Web\EmployeeController;
 use App\Http\Controllers\Web\MyAttendanceController;
 use App\Http\Controllers\Web\ReportController;
+use App\Http\Controllers\Web\ShiftTemplateController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn() => redirect()->route('dashboard'));
@@ -37,6 +38,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('employees/{employee}/face', [EmployeeController::class, 'uploadFace'])->name('employees.upload-face');
 
         Route::resource('departments', DepartmentController::class);
+        Route::resource('shifts', ShiftTemplateController::class);
         Route::post('departments/{department}/employees', [DepartmentController::class, 'addEmployee'])->name('departments.employees.add');
         Route::delete('departments/{department}/employees/{user}', [DepartmentController::class, 'removeEmployee'])->name('departments.employees.remove');
 

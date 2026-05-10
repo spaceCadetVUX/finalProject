@@ -37,6 +37,8 @@ Route::middleware(['auth'])->group(function () {
         Route::post('employees/{employee}/face', [EmployeeController::class, 'uploadFace'])->name('employees.upload-face');
 
         Route::resource('departments', DepartmentController::class);
+        Route::post('departments/{department}/employees', [DepartmentController::class, 'addEmployee'])->name('departments.employees.add');
+        Route::delete('departments/{department}/employees/{user}', [DepartmentController::class, 'removeEmployee'])->name('departments.employees.remove');
 
         Route::resource('devices', DeviceController::class)->only(['index', 'store', 'destroy']);
     });

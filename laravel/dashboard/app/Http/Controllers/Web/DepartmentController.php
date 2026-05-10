@@ -37,6 +37,31 @@ class DepartmentController extends Controller
         return redirect()->route('departments.index')->with('success', 'Thêm phòng ban thành công.');
     }
 
+    public function show(Department $department)
+    {
+        $department->load(['manager', 'employees' => fn($q) => $q->orderBy('name')]);
+        $available = User::whereNull('department_id')
+            ->whereNull('deleted_at')
+            ->orderBy('name')
+            ->get(['id', 'name', 'code']);
+        return view('departments.show', compact('department', 'available'));
+    }
+
+    public function addEmployee(Request $request, Department $department)
+    {
+        $request->validate(['user_id' => 'required|exists:users,id']);
+        User::where('id', $request->user_id)->update(['department_id' => $department->id]);
+        return redirect()->route('departments.show', $department)
+            ->with('success', 'Đã thêm nhân viên vào phòng ban.');
+    }
+
+    public function removeEmployee(Department $department, User $user)
+    {
+        $user->update(['department_id' => null]);
+        return redirect()->route('departments.show', $department)
+            ->with('success', 'Đã xóa nhân viên khỏi phòng ban.');
+    }
+
     public function edit(Department $department)
     {
         $managers = User::whereIn('role', ['manager', 'admin', 'super_admin'])->orderBy('name')->get();

@@ -41,6 +41,7 @@
                     <span class="text-gray-400 text-xs">người</span>
                 </td>
                 <td class="px-4 py-3 text-right">
+                    <a href="{{ route('departments.show', $dept) }}" class="text-gray-500 hover:underline text-xs mr-3">Xem</a>
                     <a href="{{ route('departments.edit', $dept) }}" class="text-blue-600 hover:underline text-xs mr-3">Sửa</a>
                     <form method="POST" action="{{ route('departments.destroy', $dept) }}" class="inline"
                           onsubmit="return confirm('Xóa phòng ban {{ $dept->name }}?')">

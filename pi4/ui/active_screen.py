@@ -213,6 +213,7 @@ class ConfirmPopup(QWidget):
         t = datetime.now().strftime("%H:%M")
         self._fill(data, icon, color, "XÁC NHẬN ĐIỂM DANH", "white",
                    f"{label}   lúc   {t}")
+        self.action_lbl.show()
         self._two_btn_widget.show()
         self._btn_ok.hide()
         self.show()
@@ -225,6 +226,29 @@ class ConfirmPopup(QWidget):
         label = "VÀO LÀM" if rtype == "check_in" else "RA VỀ"
         self._fill(data, "ℹ", color, message, color,
                    f"{arrow}  {label}   lúc   {time_str}")
+        self.action_lbl.show()
+        self._two_btn_widget.hide()
+        self._btn_ok.show()
+        self.show()
+        self.raise_()
+
+    def show_error(self, data: dict, title: str, color: str):
+        """Hiện popup lỗi — chỉ có OK, không có action text."""
+        self.icon_lbl.setText("!")
+        self.icon_lbl.setStyleSheet(
+            f"color: {color}; font-size: 36px; background: transparent; border: none;")
+        self.status_lbl.setText(title)
+        self.status_lbl.setStyleSheet(
+            f"color: {color}; font-size: 13px; font-weight: bold; "
+            f"letter-spacing: 2px; background: transparent; border: none;")
+        name = data.get("name", f"User {data.get('user_id', '')}").upper()
+        self.name_lbl.setText(name)
+        code = data.get("code", "")
+        self.code_lbl.setText(f"#{code}" if code else f"ID {data.get('user_id', '')}")
+        dept = data.get("department") or ""
+        self.dept_lbl.setText(dept.upper() if dept else "")
+        self.dept_lbl.setVisible(bool(dept))
+        self.action_lbl.hide()
         self._two_btn_widget.hide()
         self._btn_ok.show()
         self.show()
@@ -247,8 +271,9 @@ class ActiveScreen(QWidget):
 
     def __init__(self):
         super().__init__()
-        self._current_person = None
-        self._timeout_timer  = QTimer(self)
+        self._current_person  = None
+        self._person_visible  = False
+        self._timeout_timer   = QTimer(self)
         self._timeout_timer.setSingleShot(True)
         self._timeout_timer.timeout.connect(self.timed_out)
         self._setup_ui()
@@ -498,8 +523,15 @@ class ActiveScreen(QWidget):
     # ── Popup handlers ────────────────────────────────────────────────────────
 
     def _pre_confirm(self, rtype: str):
-        """Bấm nút → hiện popup xác nhận trước khi ghi nhận."""
+        """Bấm nút → kiểm tra đang nhận diện → hiện popup xác nhận."""
         if not self._current_person:
+            return
+        if not self._person_visible:
+            self.popup.show_error(
+                self._current_person,
+                "ĐỨNG TRƯỚC CAMERA ĐỂ ĐIỂM DANH",
+                "#e3b341",
+            )
             return
         self.btn_checkin.setEnabled(False)
         self.btn_checkout.setEnabled(False)
@@ -510,11 +542,29 @@ class ActiveScreen(QWidget):
         self.record_requested.emit(rtype)
 
     def _on_popup_cancelled(self):
-        """Người dùng bấm Hủy hoặc OK (info) → khôi phục nút."""
-        self.btn_checkin.setEnabled(True)
-        self.btn_checkout.setEnabled(True)
+        """Người dùng bấm Hủy hoặc OK → khôi phục nút nếu vẫn đang nhận diện."""
+        if self._person_visible:
+            self.btn_checkin.setEnabled(True)
+            self.btn_checkout.setEnabled(True)
 
     # ── Public API ────────────────────────────────────────────────────────────
+
+    def set_person_visible(self, visible: bool):
+        """Gọi khi camera nhận ra (True) hoặc mất (False) khuôn mặt."""
+        self._person_visible = visible
+        if not visible:
+            self.btn_checkin.setEnabled(False)
+            self.btn_checkout.setEnabled(False)
+
+    def show_no_shift_error(self):
+        """Hiện popup lỗi khi nhân viên không có ca làm việc hôm nay."""
+        if not self._current_person:
+            return
+        self.popup.show_error(
+            self._current_person,
+            "KHÔNG CÓ CA LÀM VIỆC HÔM NAY",
+            "#f85149",
+        )
 
     def set_frame(self, frame: np.ndarray):
         h = max(self.height(), 480)

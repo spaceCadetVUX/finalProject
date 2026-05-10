@@ -149,6 +149,7 @@ class MainWindow(QMainWindow):
         self._session_log    = []   # [{name, code, type, status, time}] trong phiên
         self._cooldown       = {}   # (user_id, rtype) → float
         self._current_person = None
+        self._person_visible = False
 
         try:
             self.recognizer.load_encodings(api_client.fetch_encodings())
@@ -215,6 +216,8 @@ class MainWindow(QMainWindow):
 
     def _on_person_identified(self, data: dict):
         self._clear_timer.stop()
+        self._person_visible = True
+        self.active.set_person_visible(True)
         uid = data["user_id"]
         if uid != (self._current_person or {}).get("user_id"):
             # Fetch shift first so we can scope today's attendance to that specific shift.
@@ -242,6 +245,8 @@ class MainWindow(QMainWindow):
             self.active.show_person(data)
 
     def _on_person_cleared(self):
+        self._person_visible = False
+        self.active.set_person_visible(False)
         self._clear_timer.start(2000)
 
     def _on_person_gone(self):
@@ -253,6 +258,16 @@ class MainWindow(QMainWindow):
         person = self._current_person
         if not person:
             return
+
+        # Từ chối nếu người đó đã rời khỏi camera (grace period hoặc sau đó)
+        if not self._person_visible:
+            return
+
+        # Từ chối nếu không có ca làm việc được phân hôm nay
+        if person.get("shift") is None:
+            self.active.show_no_shift_error()
+            return
+
         uid = person["user_id"]
         now = time.time()
         if now - self._cooldown.get((uid, rtype), 0) < COOLDOWN_SECONDS:

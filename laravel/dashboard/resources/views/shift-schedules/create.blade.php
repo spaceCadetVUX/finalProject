@@ -135,31 +135,43 @@
 
             {{-- 4. Ngày trong tuần --}}
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">
+                <label class="block text-sm font-medium text-gray-700 mb-3">
                     Áp dụng ngày <span class="text-red-500">*</span>
                 </label>
-                <div class="flex flex-wrap gap-2">
+
+                {{-- Individual day pills --}}
+                <div class="flex flex-wrap gap-2 mb-4">
                     @foreach($dayLabels as $dow => $label)
-                        <label class="cursor-pointer">
-                            <input type="checkbox" name="days_of_week[]" value="{{ $dow }}"
-                                   class="sr-only peer"
-                                   {{ in_array($dow, old('days_of_week', [])) ? 'checked' : '' }}>
-                            <span class="inline-block px-3 py-1.5 rounded-lg border-2 text-sm font-medium transition-colors
-                                         border-gray-200 text-gray-500
-                                         peer-checked:border-blue-500 peer-checked:bg-blue-50 peer-checked:text-blue-700">
-                                {{ $label }}
-                            </span>
-                        </label>
+                        <button type="button"
+                                @click="toggleDay({{ $dow }})"
+                                class="px-3 py-1.5 rounded-lg border-2 text-sm font-medium transition-colors select-none"
+                                :class="selectedDays.includes({{ $dow }})
+                                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                                    : 'border-gray-200 text-gray-500 hover:border-gray-300'">
+                            {{ $label }}
+                        </button>
                     @endforeach
                 </div>
-                <div class="flex gap-2 mt-2">
-                    <button type="button" onclick="checkDays([1,2,3,4,5])"
-                            class="text-xs text-blue-500 hover:underline">T2–T6</button>
-                    <button type="button" onclick="checkDays([1,2,3,4,5,6])"
-                            class="text-xs text-blue-500 hover:underline">T2–T7</button>
-                    <button type="button" onclick="checkDays([1,2,3,4,5,6,7])"
-                            class="text-xs text-blue-500 hover:underline">Cả tuần</button>
+
+                {{-- Preset buttons — highlight when selection exactly matches --}}
+                <div class="flex flex-wrap gap-2">
+                    <template x-for="p in dayPresets" :key="p.label">
+                        <button type="button"
+                                @click="applyPreset(p.days)"
+                                class="px-4 py-1.5 rounded-lg text-xs font-medium border transition-all"
+                                :class="isPresetActive(p.days)
+                                    ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
+                                    : 'bg-white border-gray-200 text-gray-600 hover:border-blue-400 hover:text-blue-600'">
+                            <span x-text="p.label"></span>
+                        </button>
+                    </template>
                 </div>
+
+                {{-- Hidden inputs for form POST (Alpine-managed) --}}
+                <template x-for="d in selectedDays" :key="d">
+                    <input type="hidden" name="days_of_week[]" :value="d">
+                </template>
+
                 @error('days_of_week')
                     <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                 @enderror
@@ -171,7 +183,7 @@
                     <label class="block text-sm font-medium text-gray-700 mb-1">
                         Từ ngày <span class="text-red-500">*</span>
                     </label>
-                    <input type="date" name="start_date"
+                    <input type="date" name="start_date" autocomplete="off"
                            value="{{ old('start_date', date('Y-m-d')) }}"
                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none
                                   @error('start_date') border-red-400 @enderror">
@@ -184,7 +196,7 @@
                         Đến ngày
                         <span class="text-xs text-gray-400 font-normal">(trống = vô thời hạn)</span>
                     </label>
-                    <input type="date" name="end_date"
+                    <input type="date" name="end_date" autocomplete="off"
                            value="{{ old('end_date') }}"
                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none
                                   @error('end_date') border-red-400 @enderror">
@@ -281,12 +293,6 @@
 <style>[x-cloak]{display:none!important}</style>
 
 <script>
-function checkDays(days) {
-    document.querySelectorAll('input[name="days_of_week[]"]').forEach(cb => {
-        cb.checked = days.includes(parseInt(cb.value));
-    });
-}
-
 function shiftAssign(conflicts) {
     return {
         templateId:        '{{ old("shift_template_id", "") }}',
@@ -299,10 +305,18 @@ function shiftAssign(conflicts) {
         showConflictModal: conflicts.length > 0,
         conflicts:         conflicts,
 
+        selectedDays: @json(array_map('intval', old('days_of_week', []))),
+        dayPresets: [
+            { label: 'T2 – T6', days: [1,2,3,4,5] },
+            { label: 'T2 – T7', days: [1,2,3,4,5,6] },
+            { label: 'Cuối tuần', days: [6,7] },
+            { label: 'Cả tuần',   days: [1,2,3,4,5,6,7] },
+        ],
+
         departments: @json($departments),
         employees:   @json($employees),
 
-        dayNames: {1:'Thứ 2',2:'Thứ 3',3:'Thứ 4',4:'Thứ 5',5:'Thứ 6',6:'Thứ 7',7:'CN'},
+        dayNames: {1:'T2',2:'T3',3:'T4',4:'T5',5:'T6',6:'T7',7:'CN'},
 
         init() {
             // Restore selected label nếu có old input
@@ -334,6 +348,21 @@ function shiftAssign(conflicts) {
             this.assigneeId    = '';
             this.selectedLabel = '';
             this.search        = '';
+        },
+
+        toggleDay(d) {
+            const i = this.selectedDays.indexOf(d);
+            if (i === -1) this.selectedDays.push(d);
+            else this.selectedDays.splice(i, 1);
+        },
+
+        applyPreset(days) {
+            this.selectedDays = [...days];
+        },
+
+        isPresetActive(days) {
+            return days.length === this.selectedDays.length &&
+                   days.every(d => this.selectedDays.includes(d));
         },
 
         submitForm() {

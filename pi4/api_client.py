@@ -58,9 +58,10 @@ def create_employee(name: str, code: str, encoding: list) -> dict | None:
 
 
 def post_attendance(user_id: int, record_type: str, confidence: float,
-                    image_b64: str | None, recorded_at: str) -> dict | None:
+                    image_b64: str | None, recorded_at: str,
+                    shift_schedule_id: int | None = None) -> dict | None:
     """
-    Ghi chấm công. Trả về {id, work_date, status} từ server, hoặc None nếu lỗi.
+    Ghi chấm công. Trả về {id, work_date, shift_schedule_id, status} từ server, hoặc None nếu lỗi.
     status: 'present' | 'late' | 'early_leave'
     """
     payload = {
@@ -70,6 +71,8 @@ def post_attendance(user_id: int, record_type: str, confidence: float,
         "image":       image_b64,
         "recorded_at": recorded_at,
     }
+    if shift_schedule_id is not None:
+        payload["shift_schedule_id"] = shift_schedule_id
     try:
         resp = requests.post(f"{SERVER_URL}/api/attendance", json=payload,
                              headers=HEADERS, timeout=TIMEOUT)
@@ -103,6 +106,21 @@ def fetch_today_attendance(user_id: int) -> dict:
     except requests.RequestException:
         pass
     return {"check_in_at": None, "check_out_at": None, "status": None}
+
+
+def fetch_active_shift(user_id: int) -> dict | None:
+    """Lấy ca làm việc active hôm nay.
+    Trả về {shift_schedule_id, shift_name, check_in_time, check_out_time, late_tolerance}
+    hoặc None nếu không có ca / lỗi.
+    """
+    try:
+        resp = requests.get(f"{SERVER_URL}/api/shifts/active/{user_id}",
+                            headers=HEADERS, timeout=5)
+        if resp.status_code == 200:
+            return resp.json()  # server trả JSON null → Python None
+    except requests.RequestException:
+        pass
+    return None
 
 
 def ping() -> bool:

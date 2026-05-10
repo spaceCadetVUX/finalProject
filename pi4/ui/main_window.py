@@ -218,14 +218,16 @@ class MainWindow(QMainWindow):
         uid = data["user_id"]
         if uid != (self._current_person or {}).get("user_id"):
             today = api_client.fetch_today_attendance(uid)
-            data = {**data, **today}
+            shift = api_client.fetch_active_shift(uid)
+            data = {**data, **today, "shift": shift}
         else:
-            # giữ lại thời gian check-in/out đã có
+            # giữ lại thời gian check-in/out và ca đã fetch
             prev = self._current_person or {}
             data = {
                 **data,
                 "check_in_at":  prev.get("check_in_at"),
                 "check_out_at": prev.get("check_out_at"),
+                "shift":        prev.get("shift"),
             }
         self._current_person = data
         idx = self.stack.currentIndex()
@@ -256,9 +258,11 @@ class MainWindow(QMainWindow):
         self._cooldown[(uid, rtype)] = now
 
         recorded_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        shift = person.get("shift") or {}
         result = api_client.post_attendance(
             uid, rtype, person["confidence"],
             None, recorded_at,
+            shift_schedule_id=shift.get("shift_schedule_id"),
         )
         status = result.get("status", "present") if result else "offline"
         if not result:

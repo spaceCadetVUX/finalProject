@@ -332,6 +332,37 @@ class ActiveScreen(QWidget):
         self.dept_label.setStyleSheet("color: #58a6ff; letter-spacing: 1px;")
         il.addWidget(self.dept_label)
 
+        il.addSpacing(10)
+
+        # Ca làm việc hôm nay
+        self.shift_widget = QWidget()
+        self.shift_widget.setStyleSheet("""
+            background: rgba(88,166,255,0.08);
+            border-left: 2px solid rgba(88,166,255,0.5);
+            border-radius: 4px;
+        """)
+        shl = QHBoxLayout(self.shift_widget)
+        shl.setContentsMargins(10, 7, 10, 7)
+        shl.setSpacing(8)
+        shift_icon = QLabel("◷")
+        shift_icon.setFixedWidth(18)
+        shift_icon.setStyleSheet(
+            "color: #58a6ff; font-size: 15px; background: transparent; border: none;")
+        shl.addWidget(shift_icon)
+        self.shift_name_lbl = QLabel()
+        self.shift_name_lbl.setStyleSheet(
+            "color: rgba(255,255,255,0.8); font-size: 14px; "
+            "background: transparent; border: none;")
+        shl.addWidget(self.shift_name_lbl)
+        shl.addStretch()
+        self.shift_time_lbl = QLabel()
+        self.shift_time_lbl.setStyleSheet(
+            "color: rgba(255,255,255,0.45); font-size: 13px; "
+            "letter-spacing: 1px; background: transparent; border: none;")
+        shl.addWidget(self.shift_time_lbl)
+        il.addWidget(self.shift_widget)
+        self.shift_widget.hide()
+
         il.addSpacing(6)
         detail_row = QHBoxLayout()
         detail_row.setSpacing(16)
@@ -501,6 +532,7 @@ class ActiveScreen(QWidget):
         self.name_label.setStyleSheet("color: rgba(255,255,255,0.2);")
         self.role_label.setText("")
         self.dept_label.setText("")
+        self.shift_widget.hide()
         self.code_label.setText("")
         self.conf_label.setText("")
         self.ci_time.setText("—")
@@ -521,6 +553,16 @@ class ActiveScreen(QWidget):
 
         dept = data.get("department") or ""
         self.dept_label.setText(dept.upper() if dept else "")
+
+        shift = data.get("shift")
+        if shift:
+            self.shift_name_lbl.setText(shift.get("shift_name", ""))
+            ci = shift.get("check_in_time", "")
+            co = shift.get("check_out_time", "")
+            self.shift_time_lbl.setText(f"{ci} – {co}" if ci and co else "")
+            self.shift_widget.show()
+        else:
+            self.shift_widget.hide()
 
         code = data.get("code", "")
         self.code_label.setText(f"#{code}" if code else f"ID {data['user_id']}")

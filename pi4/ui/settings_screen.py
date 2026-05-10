@@ -15,6 +15,7 @@ ENV_PATH = os.path.join(
 class SettingsScreen(QWidget):
     back_clicked          = pyqtSignal()
     add_employee_clicked  = pyqtSignal()
+    sync_requested        = pyqtSignal()
 
     def __init__(self):
         super().__init__()
@@ -77,6 +78,12 @@ class SettingsScreen(QWidget):
         btn_row.addWidget(btn_add_emp)
 
         root.addLayout(btn_row)
+
+        btn_sync = QPushButton("↻  Đồng bộ dữ liệu")
+        btn_sync.setFixedHeight(48)
+        btn_sync.setStyleSheet(self._btn("#0969da", "white"))
+        btn_sync.clicked.connect(self.sync_requested)
+        root.addWidget(btn_sync)
 
         btn_restart = QPushButton("🔄  Khởi động lại")
         btn_restart.setFixedHeight(48)
@@ -145,6 +152,9 @@ class SettingsScreen(QWidget):
 
     def _restart(self):
         os.execv(sys.executable, [sys.executable] + sys.argv)
+
+    def set_sync_status(self, msg: str, color: str):
+        self._set_status(msg, color)
 
     def _set_status(self, msg: str, color: str):
         self.status.setText(msg)

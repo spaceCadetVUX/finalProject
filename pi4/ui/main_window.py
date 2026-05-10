@@ -139,6 +139,26 @@ class SyncThread(QThread):
         self.wait()
 
 
+class ManualSyncThread(QThread):
+    finished = pyqtSignal(str, str)  # (message, color)
+
+    def __init__(self, recognizer: FaceRecognizer):
+        super().__init__()
+        self.recognizer = recognizer
+
+    def run(self):
+        if not api_client.ping():
+            self.finished.emit("✗ Không kết nối được server", "#cf222e")
+            return
+        synced = sync_pending(self.recognizer)
+        refresh_encodings(self.recognizer, None)  # None = full refresh
+        parts = []
+        if synced:
+            parts.append(f"{synced} chấm công offline đã upload")
+        parts.append("encodings đã cập nhật")
+        self.finished.emit(f"✓ {' · '.join(parts)}", "#1a7f37")
+
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -184,6 +204,7 @@ class MainWindow(QMainWindow):
         self.add_employee.back_clicked.connect(
             lambda: self.stack.setCurrentIndex(2))
         self.add_employee.employee_added.connect(self._on_employee_added)
+        self.settings.sync_requested.connect(self._on_manual_sync)
 
         self.cam_thread = CameraThread(self.recognizer)
         self.cam_thread.new_frame.connect(self._dispatch_frame)
@@ -300,6 +321,15 @@ class MainWindow(QMainWindow):
         self.active.update_log(self._session_log)
         self.idle.update_stats(len(self._session_log))
         self.active.show_result(data, status)
+
+    def _on_manual_sync(self):
+        self.settings.set_sync_status("Đang đồng bộ...", "#57606a")
+        t = ManualSyncThread(self.recognizer)
+        t.finished.connect(self.settings.set_sync_status)
+        t.finished.connect(lambda msg, color: setattr(
+            self.sync_thread, '_last_sync', int(time.time())))
+        t.start()
+        self._manual_sync_thread = t  # keep reference alive
 
     def _on_employee_added(self, data: dict):
         try:

@@ -1,18 +1,25 @@
 import cv2
 import numpy as np
+from datetime import datetime
 from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QPropertyAnimation, QEasingCurve
 from PyQt5.QtGui import QFont, QImage, QPixmap, QLinearGradient, QColor, QPainter, QBrush
 from PyQt5.QtWidgets import (QFrame, QGraphicsOpacityEffect, QHBoxLayout, QLabel,
                               QPushButton, QVBoxLayout, QWidget)
 
-RESULT_MS  = 3_000
 TIMEOUT_MS = 600_000
 
-STATUS_MAP = {
-    "present":     ("#3fb950", "✓  ĐIỂM DANH THÀNH CÔNG"),
-    "late":        ("#d29922", "⚠  VÀO TRỄ"),
-    "early_leave": ("#f85149", "⚠  VỀ SỚM"),
-    "offline":     ("#8b949e", "💾  LƯU OFFLINE"),
+STATUS_COLOR = {
+    "present":     "#3fb950",
+    "late":        "#d29922",
+    "early_leave": "#f85149",
+    "offline":     "#8b949e",
+}
+
+STATUS_TEXT = {
+    "present":     "ĐIỂM DANH THÀNH CÔNG",
+    "late":        "VÀO TRỄ",
+    "early_leave": "VỀ SỚM",
+    "offline":     "LƯU OFFLINE",
 }
 
 ROLE_MAP = {
@@ -33,6 +40,152 @@ def _crop_fill(frame: np.ndarray, target_w: int, target_h: int) -> np.ndarray:
     return resized[y:y + target_h, x:x + target_w]
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+class ConfirmPopup(QWidget):
+    """Overlay xác nhận điểm danh — chỉ tắt khi bấm OK."""
+    confirmed = pyqtSignal()
+
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        self.hide()
+        self._build()
+
+    def _build(self):
+        root = QVBoxLayout(self)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setAlignment(Qt.AlignCenter)
+
+        # Card
+        card = QWidget()
+        card.setStyleSheet("""
+            background: #161b22;
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 16px;
+        """)
+        card.setFixedWidth(340)
+        cl = QVBoxLayout(card)
+        cl.setContentsMargins(32, 28, 32, 28)
+        cl.setSpacing(0)
+
+        # Icon + status
+        self.icon_lbl = QLabel("✓")
+        self.icon_lbl.setAlignment(Qt.AlignCenter)
+        self.icon_lbl.setFont(QFont("Arial", 36))
+        self.icon_lbl.setStyleSheet("color: #3fb950; background: transparent; border: none;")
+        cl.addWidget(self.icon_lbl)
+        cl.addSpacing(4)
+
+        self.status_lbl = QLabel("ĐIỂM DANH THÀNH CÔNG")
+        self.status_lbl.setAlignment(Qt.AlignCenter)
+        self.status_lbl.setFont(QFont("Arial", 13, QFont.Bold))
+        self.status_lbl.setStyleSheet(
+            "color: #3fb950; letter-spacing: 2px; background: transparent; border: none;")
+        cl.addWidget(self.status_lbl)
+
+        cl.addSpacing(20)
+        cl.addWidget(self._divider())
+        cl.addSpacing(16)
+
+        # Name
+        self.name_lbl = QLabel()
+        self.name_lbl.setAlignment(Qt.AlignCenter)
+        self.name_lbl.setFont(QFont("Arial", 22, QFont.Bold))
+        self.name_lbl.setWordWrap(True)
+        self.name_lbl.setStyleSheet("color: white; letter-spacing: 1px; background: transparent; border: none;")
+        cl.addWidget(self.name_lbl)
+        cl.addSpacing(6)
+
+        # Code
+        self.code_lbl = QLabel()
+        self.code_lbl.setAlignment(Qt.AlignCenter)
+        self.code_lbl.setStyleSheet(
+            "color: rgba(255,255,255,0.4); font-size: 13px; letter-spacing: 2px; background: transparent; border: none;")
+        cl.addWidget(self.code_lbl)
+        cl.addSpacing(4)
+
+        # Department
+        self.dept_lbl = QLabel()
+        self.dept_lbl.setAlignment(Qt.AlignCenter)
+        self.dept_lbl.setStyleSheet(
+            "color: #58a6ff; font-size: 14px; letter-spacing: 1px; background: transparent; border: none;")
+        cl.addWidget(self.dept_lbl)
+
+        cl.addSpacing(20)
+        cl.addWidget(self._divider())
+        cl.addSpacing(16)
+
+        # Action + time
+        self.action_lbl = QLabel()
+        self.action_lbl.setAlignment(Qt.AlignCenter)
+        self.action_lbl.setFont(QFont("Arial", 16))
+        self.action_lbl.setStyleSheet(
+            "color: rgba(255,255,255,0.8); letter-spacing: 1px; background: transparent; border: none;")
+        cl.addWidget(self.action_lbl)
+
+        cl.addSpacing(24)
+
+        # OK button
+        btn_ok = QPushButton("OK")
+        btn_ok.setFixedHeight(52)
+        btn_ok.setFont(QFont("Arial", 15, QFont.Bold))
+        btn_ok.setStyleSheet("""
+            QPushButton {
+                background: #238636; color: white;
+                border-radius: 10px; border: none; letter-spacing: 3px;
+            }
+            QPushButton:pressed { background: #2ea043; }
+        """)
+        btn_ok.clicked.connect(self._on_ok)
+        cl.addWidget(btn_ok)
+
+        root.addWidget(card)
+
+    def _divider(self):
+        line = QFrame()
+        line.setFrameShape(QFrame.HLine)
+        line.setFixedHeight(1)
+        line.setStyleSheet("background: rgba(255,255,255,0.08); border: none;")
+        return line
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.fillRect(self.rect(), QColor(0, 0, 0, 160))
+
+    def show_confirm(self, data: dict, rtype: str, status: str, time_str: str):
+        color  = STATUS_COLOR.get(status, "#58a6ff")
+        text   = STATUS_TEXT.get(status, "HOÀN TẤT")
+        icon   = "✓" if status != "offline" else "💾"
+        action = "↑  VÀO LÀM" if rtype == "check_in" else "↓  RA VỀ"
+
+        self.icon_lbl.setText(icon)
+        self.icon_lbl.setStyleSheet(
+            f"color: {color}; font-size: 36px; background: transparent; border: none;")
+        self.status_lbl.setText(text)
+        self.status_lbl.setStyleSheet(
+            f"color: {color}; font-size: 13px; font-weight: bold; "
+            f"letter-spacing: 2px; background: transparent; border: none;")
+
+        name = data.get("name", f"User {data.get('user_id', '')}").upper()
+        self.name_lbl.setText(name)
+
+        code = data.get("code", "")
+        self.code_lbl.setText(f"#{code}" if code else f"ID {data.get('user_id', '')}")
+
+        dept = data.get("department") or ""
+        self.dept_lbl.setText(dept.upper() if dept else "")
+        self.dept_lbl.setVisible(bool(dept))
+
+        self.action_lbl.setText(f"{action}   lúc   {time_str}")
+        self.show()
+        self.raise_()
+
+    def _on_ok(self):
+        self.hide()
+        self.confirmed.emit()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 class ActiveScreen(QWidget):
     record_requested = pyqtSignal(str)
     timed_out        = pyqtSignal()
@@ -41,13 +194,14 @@ class ActiveScreen(QWidget):
     def __init__(self):
         super().__init__()
         self._current_person = None
-        self._result_timer   = QTimer(self)
         self._timeout_timer  = QTimer(self)
-        self._result_timer.setSingleShot(True)
         self._timeout_timer.setSingleShot(True)
         self._timeout_timer.timeout.connect(self.timed_out)
         self._setup_ui()
         self._setup_animations()
+
+        self.popup = ConfirmPopup(self)
+        self.popup.confirmed.connect(self._on_popup_confirmed)
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -55,6 +209,10 @@ class ActiveScreen(QWidget):
         grad.setColorAt(0.0, QColor("#0d1117"))
         grad.setColorAt(1.0, QColor("#0a0f1e"))
         painter.fillRect(self.rect(), QBrush(grad))
+
+    def resizeEvent(self, event):
+        self.popup.setGeometry(400, 0, self.width() - 400, self.height())
+        super().resizeEvent(event)
 
     def _setup_ui(self):
         self.setStyleSheet("background: transparent; color: white;")
@@ -83,20 +241,7 @@ class ActiveScreen(QWidget):
         rl.setSpacing(0)
         root.addWidget(right, 1)
 
-        # ── Result banner (top, ẩn mặc định) ─────────────────────────────
-        self.result_banner = QLabel()
-        self.result_banner.setFixedHeight(48)
-        self.result_banner.setAlignment(Qt.AlignCenter)
-        self.result_banner.setFont(QFont("Arial", 14, QFont.Bold))
-        self.result_banner.setStyleSheet("""
-            background: #1a7f37; color: white;
-            border-radius: 10px; letter-spacing: 2px;
-        """)
-        self.result_banner.hide()
-        rl.addWidget(self.result_banner)
-        rl.addSpacing(8)
-
-        # ── Online badge ──────────────────────────────────────────────────
+        # Online badge
         top_row = QHBoxLayout()
         top_row.addStretch()
         self.online_badge = QLabel("● ONLINE")
@@ -109,7 +254,7 @@ class ActiveScreen(QWidget):
         rl.addLayout(top_row)
         rl.addSpacing(16)
 
-        # ── Employee info (animatable) ────────────────────────────────────
+        # Employee info
         self.info_widget = QWidget()
         self.info_widget.setStyleSheet("background: transparent;")
         il = QVBoxLayout(self.info_widget)
@@ -118,7 +263,7 @@ class ActiveScreen(QWidget):
 
         self.name_label = QLabel("Chờ nhận diện...")
         self.name_label.setFont(QFont("Arial", 34, QFont.Bold))
-        self.name_label.setStyleSheet("color: rgba(255,255,255,0.25); letter-spacing: 1px;")
+        self.name_label.setStyleSheet("color: rgba(255,255,255,0.2); letter-spacing: 1px;")
         self.name_label.setWordWrap(True)
         il.addWidget(self.name_label)
 
@@ -133,7 +278,6 @@ class ActiveScreen(QWidget):
         il.addWidget(self.dept_label)
 
         il.addSpacing(6)
-
         detail_row = QHBoxLayout()
         detail_row.setSpacing(16)
         self.code_label = QLabel()
@@ -152,7 +296,7 @@ class ActiveScreen(QWidget):
         self._add_divider(rl)
         rl.addSpacing(14)
 
-        # ── Điểm danh hôm nay ─────────────────────────────────────────────
+        # Điểm danh hôm nay
         today_lbl = QLabel("ĐIỂM DANH HÔM NAY")
         today_lbl.setStyleSheet(
             "color: rgba(255,255,255,0.2); font-size: 10px; letter-spacing: 3px;")
@@ -190,7 +334,7 @@ class ActiveScreen(QWidget):
         self._add_divider(rl)
         rl.addSpacing(14)
 
-        # ── Action buttons ────────────────────────────────────────────────
+        # Buttons
         btn_row = QHBoxLayout()
         btn_row.setSpacing(12)
 
@@ -213,7 +357,7 @@ class ActiveScreen(QWidget):
         rl.addLayout(btn_row)
         rl.addStretch()
 
-        # ── Settings ──────────────────────────────────────────────────────
+        # Settings
         bottom = QHBoxLayout()
         bottom.addStretch()
         btn_cfg = QPushButton("⚙")
@@ -265,27 +409,6 @@ class ActiveScreen(QWidget):
         self._anim.setDuration(400)
         self._anim.setEasingCurve(QEasingCurve.OutCubic)
 
-        self._banner_opacity = QGraphicsOpacityEffect(self.result_banner)
-        self.result_banner.setGraphicsEffect(self._banner_opacity)
-        self._banner_anim = QPropertyAnimation(self._banner_opacity, b"opacity")
-        self._banner_anim.setDuration(300)
-        self._banner_anim.setEasingCurve(QEasingCurve.OutCubic)
-
-    def _show_banner(self, text: str, color: str):
-        self.result_banner.setText(text)
-        self.result_banner.setStyleSheet(f"""
-            background: {color}; color: white;
-            border-radius: 10px; letter-spacing: 2px;
-        """)
-        self.result_banner.show()
-        self._banner_anim.stop()
-        self._banner_anim.setStartValue(0.0)
-        self._banner_anim.setEndValue(1.0)
-        self._banner_anim.start()
-
-    def _hide_banner(self):
-        self.result_banner.hide()
-
     def set_frame(self, frame: np.ndarray):
         h = max(self.height(), 480)
         cropped = _crop_fill(frame, 400, h)
@@ -297,7 +420,6 @@ class ActiveScreen(QWidget):
     def show_waiting(self):
         self._current_person = None
         self._timeout_timer.start(TIMEOUT_MS)
-        self._hide_banner()
         self.name_label.setText("Chờ nhận diện...")
         self.name_label.setFont(QFont("Arial", 34, QFont.Bold))
         self.name_label.setStyleSheet("color: rgba(255,255,255,0.2);")
@@ -313,10 +435,8 @@ class ActiveScreen(QWidget):
     def show_person(self, data: dict):
         self._current_person = data
         self._timeout_timer.start(TIMEOUT_MS)
-        self._hide_banner()
 
-        name = data.get("name", f"User {data['user_id']}").upper()
-        self.name_label.setText(name)
+        self.name_label.setText(data.get("name", f"User {data['user_id']}").upper())
         self.name_label.setFont(QFont("Arial", 34, QFont.Bold))
         self.name_label.setStyleSheet("color: #ffffff; letter-spacing: 1px;")
 
@@ -330,10 +450,8 @@ class ActiveScreen(QWidget):
         self.code_label.setText(f"#{code}" if code else f"ID {data['user_id']}")
         self.conf_label.setText(f"ĐỘ CHÍNH XÁC  {data.get('confidence', 0):.0%}")
 
-        ci = data.get("check_in_at") or "—"
-        co = data.get("check_out_at") or "—"
-        self.ci_time.setText(ci)
-        self.co_time.setText(co)
+        self.ci_time.setText(data.get("check_in_at") or "—")
+        self.co_time.setText(data.get("check_out_at") or "—")
 
         self.btn_checkin.setEnabled(True)
         self.btn_checkout.setEnabled(True)
@@ -344,11 +462,9 @@ class ActiveScreen(QWidget):
         self._anim.start()
 
     def show_result(self, data: dict, status: str):
-        from datetime import datetime
-        rtype  = data.get("record_type", "check_in")
-        color, msg = STATUS_MAP.get(status, ("#58a6ff", "✓  HOÀN TẤT"))
+        rtype = data.get("record_type", "check_in")
+        t     = datetime.now().strftime("%H:%M")
 
-        t = datetime.now().strftime("%H:%M")
         if rtype == "check_in":
             self.ci_time.setText(t)
             self._current_person = {**data, "check_in_at": t}
@@ -356,22 +472,38 @@ class ActiveScreen(QWidget):
             self.co_time.setText(t)
             self._current_person = {**data, "check_out_at": t}
 
-        self._show_banner(msg, color)
         self.btn_checkin.setEnabled(False)
         self.btn_checkout.setEnabled(False)
-
-        self._result_timer.timeout.disconnect() if self._result_timer.receivers(
-            self._result_timer.timeout) > 0 else None
-        self._result_timer.timeout.connect(self._on_result_done)
-        self._result_timer.start(RESULT_MS)
+        self.popup.show_confirm(data, rtype, status, t)
 
     def show_already_recorded(self, rtype: str):
         action = "VÀO LÀM" if rtype == "check_in" else "RA VỀ"
-        self._show_banner(f"ℹ  ĐÃ ĐIỂM DANH {action} RỒI", "#4a5568")
-        QTimer.singleShot(2000, self._hide_banner)
+        # Hiện popup thông báo đã điểm danh rồi (không phải xác nhận)
+        if self._current_person:
+            t = (self._current_person.get("check_in_at") if rtype == "check_in"
+                 else self._current_person.get("check_out_at")) or "—"
+            data = self._current_person
+            # dùng popup với status đặc biệt
+            self.popup.icon_lbl.setText("ℹ")
+            self.popup.icon_lbl.setStyleSheet(
+                "color: #8b949e; font-size: 36px; background: transparent; border: none;")
+            self.popup.status_lbl.setText(f"ĐÃ ĐIỂM DANH {action} RỒI")
+            self.popup.status_lbl.setStyleSheet(
+                "color: #8b949e; font-size: 13px; font-weight: bold; "
+                "letter-spacing: 2px; background: transparent; border: none;")
+            self.popup.name_lbl.setText(data.get("name", "").upper())
+            code = data.get("code", "")
+            self.popup.code_lbl.setText(f"#{code}" if code else "")
+            dept = data.get("department") or ""
+            self.popup.dept_lbl.setText(dept.upper() if dept else "")
+            self.popup.dept_lbl.setVisible(bool(dept))
+            self.popup.action_lbl.setText(f"{'↑' if rtype == 'check_in' else '↓'}  {action}   lúc   {t}")
+            self.popup.show()
+            self.popup.raise_()
 
-    def _on_result_done(self):
-        self._hide_banner()
+    def _on_popup_confirmed(self):
+        self.btn_checkin.setEnabled(True)
+        self.btn_checkout.setEnabled(True)
         if self._current_person:
             self.show_person(self._current_person)
 

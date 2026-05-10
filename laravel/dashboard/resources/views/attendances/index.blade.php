@@ -41,6 +41,18 @@ $statusBadge = [
             @endforeach
         </select>
 
+        @if($shiftTemplates->isNotEmpty())
+        <select name="shift_template_id" onchange="this.form.submit()"
+                class="border border-gray-300 rounded-lg pl-3 pr-10 py-2 text-sm">
+            <option value="">Tất cả ca</option>
+            @foreach($shiftTemplates as $tpl)
+                <option value="{{ $tpl->id }}" {{ request('shift_template_id') == $tpl->id ? 'selected' : '' }}>
+                    {{ $tpl->name }}
+                </option>
+            @endforeach
+        </select>
+        @endif
+
         <select name="status" onchange="this.form.submit()"
                 class="border border-gray-300 rounded-lg pl-3 pr-10 py-2 text-sm">
             <option value="">Tất cả trạng thái</option>
@@ -51,7 +63,7 @@ $statusBadge = [
 
         <button type="submit" class="bg-gray-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-700">Lọc</button>
 
-        @if(request()->hasAny(['search','department_id','status']))
+        @if(request()->hasAny(['search','department_id','shift_template_id','status']))
             <a href="{{ route('attendances.index', ['date' => $date]) }}"
                class="px-4 py-2 rounded-lg text-sm text-gray-500 hover:bg-gray-100">Xóa bộ lọc</a>
         @endif
@@ -76,6 +88,7 @@ $statusBadge = [
             <tr>
                 <th class="text-left px-4 py-3 text-gray-600 font-medium">Nhân viên</th>
                 <th class="text-left px-4 py-3 text-gray-600 font-medium">Phòng ban</th>
+                <th class="text-left px-4 py-3 text-gray-600 font-medium">Ca làm</th>
                 <th class="text-left px-4 py-3 text-gray-600 font-medium">Check-in</th>
                 <th class="text-left px-4 py-3 text-gray-600 font-medium">Check-out</th>
                 <th class="text-left px-4 py-3 text-gray-600 font-medium">Trạng thái</th>
@@ -101,6 +114,20 @@ $statusBadge = [
                     </div>
                 </td>
                 <td class="px-4 py-3 text-gray-600">{{ $att->user->department?->name ?? '—' }}</td>
+                <td class="px-4 py-3">
+                    @if($att->shiftSchedule?->template)
+                        @php $tpl = $att->shiftSchedule->template; @endphp
+                        <div class="flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full shrink-0" style="background:{{ $tpl->color }}"></span>
+                            <div>
+                                <div class="text-xs font-medium text-gray-700">{{ $tpl->name }}</div>
+                                <div class="text-xs text-gray-400 font-mono">{{ substr($tpl->check_in_time,0,5) }}–{{ substr($tpl->check_out_time,0,5) }}</div>
+                            </div>
+                        </div>
+                    @else
+                        <span class="text-gray-300 text-xs">—</span>
+                    @endif
+                </td>
                 <td class="px-4 py-3">
                     @if($att->check_in_at)
                         <div class="font-medium text-gray-800">{{ $att->check_in_at->format('H:i') }}</div>
@@ -132,7 +159,7 @@ $statusBadge = [
             </tr>
             @empty
             <tr>
-                <td colspan="6" class="px-4 py-12 text-center">
+                <td colspan="7" class="px-4 py-12 text-center">
                     <div class="text-gray-400 text-sm">Không có dữ liệu chấm công</div>
                     <div class="text-gray-300 text-xs mt-1">{{ \Carbon\Carbon::parse($date)->format('d/m/Y') }}</div>
                 </td>

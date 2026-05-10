@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
 use App\Models\Department;
+use App\Models\ShiftTemplate;
 use Illuminate\Http\Request;
 
 class AttendanceController extends Controller
@@ -14,7 +15,7 @@ class AttendanceController extends Controller
         $user = auth()->user();
         $date = $request->input('date', now()->toDateString());
 
-        $query = Attendance::with(['user.department', 'device'])
+        $query = Attendance::with(['user.department', 'device', 'shiftSchedule.template'])
             ->whereHas('user')
             ->where('work_date', $date);
 
@@ -35,18 +36,25 @@ class AttendanceController extends Controller
                 $query->whereHas('user', fn ($q) => $q->where('name', 'like', "%{$search}%")
                     ->orWhere('code', 'like', "%{$search}%"));
             }
+            if ($request->filled('shift_template_id')) {
+                $query->whereHas('shiftSchedule', fn ($q) =>
+                    $q->where('shift_template_id', $request->shift_template_id));
+            }
         }
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
 
-        $attendances = $query->orderBy('check_in_at')->paginate(20)->withQueryString();
-        $departments  = in_array($user->role, ['super_admin', 'admin'])
+        $attendances    = $query->orderBy('check_in_at')->paginate(20)->withQueryString();
+        $departments    = in_array($user->role, ['super_admin', 'admin'])
             ? Department::orderBy('name')->get()
             : collect();
+        $shiftTemplates = in_array($user->role, ['super_admin', 'admin', 'manager'])
+            ? ShiftTemplate::where('is_active', true)->orderBy('check_in_time')->get()
+            : collect();
 
-        return view('attendances.index', compact('attendances', 'departments', 'date'));
+        return view('attendances.index', compact('attendances', 'departments', 'shiftTemplates', 'date'));
     }
 
     public function show(Attendance $attendance)
@@ -59,7 +67,7 @@ class AttendanceController extends Controller
             default    => null,
         };
 
-        $attendance->load(['user.department', 'device']);
+        $attendance->load(['user.department', 'device', 'shiftSchedule.template']);
 
         return view('attendances.show', compact('attendance'));
     }
@@ -68,7 +76,6 @@ class AttendanceController extends Controller
     {
         $user = auth()->user();
 
-        // Manager can only override their own department
         if ($user->role === 'manager'
             && $attendance->user?->department_id !== $user->department_id) {
             abort(403);

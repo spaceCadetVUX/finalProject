@@ -20,6 +20,18 @@
                 </option>
             @endforeach
         </select>
+
+        @if($shiftTemplates->isNotEmpty())
+        <select name="shift_template_id" onchange="this.form.submit()"
+                class="border border-gray-300 rounded-lg pl-3 pr-10 py-2 text-sm">
+            <option value="">Tất cả ca</option>
+            @foreach($shiftTemplates as $tpl)
+                <option value="{{ $tpl->id }}" {{ request('shift_template_id') == $tpl->id ? 'selected' : '' }}>
+                    {{ $tpl->name }}
+                </option>
+            @endforeach
+        </select>
+        @endif
     </form>
 
     <a href="{{ route('reports.export', array_merge(request()->all(), ['format' => 'excel'])) }}"
@@ -82,6 +94,7 @@
             <tr>
                 <th class="text-left px-4 py-3 text-gray-600 font-medium">Nhân viên</th>
                 <th class="text-left px-4 py-3 text-gray-600 font-medium">Phòng ban</th>
+                <th class="text-left px-4 py-3 text-gray-600 font-medium">Ca làm việc</th>
                 <th class="text-center px-3 py-3 text-gray-600 font-medium">Đi làm</th>
                 <th class="text-center px-3 py-3 text-gray-600 font-medium">Vắng</th>
                 <th class="text-center px-3 py-3 text-gray-600 font-medium">Trễ</th>
@@ -114,6 +127,7 @@
                     </div>
                 </td>
                 <td class="px-4 py-3 text-gray-600">{{ $row['department'] }}</td>
+                <td class="px-4 py-3 text-gray-500 text-xs">{{ $row['shifts'] }}</td>
                 <td class="px-3 py-3 text-center font-medium text-green-700">{{ $row['attended'] }}</td>
                 <td class="px-3 py-3 text-center font-medium text-red-500">{{ $row['absent'] }}</td>
                 <td class="px-3 py-3 text-center font-medium text-yellow-600">{{ $row['late'] }}</td>
@@ -130,7 +144,7 @@
             </tr>
             @empty
             <tr>
-                <td colspan="8" class="px-4 py-12 text-center text-gray-400 text-sm">
+                <td colspan="9" class="px-4 py-12 text-center text-gray-400 text-sm">
                     Không có dữ liệu cho tháng {{ \Carbon\Carbon::createFromFormat('Y-m', $month)->format('m/Y') }}
                 </td>
             </tr>

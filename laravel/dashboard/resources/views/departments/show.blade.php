@@ -53,7 +53,22 @@
     @endif
 </div>
 
-{{-- Employee list --}}
+{{-- Employee list + Modal wrapper --}}
+<div x-data="{
+        modalOpen: false,
+        search: '',
+        selected: null,
+        all: {{ $available->values()->toJson() }},
+        get results() {
+            const q = this.search.trim().toLowerCase();
+            const list = q
+                ? this.all.filter(u => u.name.toLowerCase().includes(q) || u.code.toLowerCase().includes(q))
+                : this.all;
+            return list.slice(0, 10);
+        }
+     }"
+     @keydown.escape.window="modalOpen = false">
+
 <div class="bg-white rounded-xl shadow-sm overflow-hidden">
     <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
         <div class="font-medium text-gray-800">
@@ -63,7 +78,7 @@
             </span>
         </div>
         @if($available->count() > 0)
-            <button onclick="document.getElementById('modal-add').classList.remove('hidden')"
+            <button @click="modalOpen = true"
                     class="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-blue-700">
                 + Thêm nhân viên
             </button>
@@ -133,40 +148,84 @@
 </div>
 
 {{-- Modal thêm nhân viên --}}
-<div id="modal-add" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-    <div class="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 p-6">
-        <div class="flex items-center justify-between mb-4">
+<div x-show="modalOpen"
+     x-transition:enter="transition ease-out duration-150"
+     x-transition:enter-start="opacity-0"
+     x-transition:enter-end="opacity-100"
+     x-transition:leave="transition ease-in duration-100"
+     x-transition:leave-start="opacity-100"
+     x-transition:leave-end="opacity-0"
+     class="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+     style="display:none">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4"
+         @click.outside="modalOpen = false">
+
+        {{-- Header --}}
+        <div class="flex items-center justify-between px-5 py-4 border-b">
             <h3 class="font-semibold text-gray-800">Thêm nhân viên vào phòng ban</h3>
-            <button onclick="document.getElementById('modal-add').classList.add('hidden')"
-                    class="text-gray-400 hover:text-gray-600 text-lg leading-none">&times;</button>
+            <button @click="modalOpen = false"
+                    class="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
         </div>
 
-        <form method="POST" action="{{ route('departments.employees.add', $department) }}">
-            @csrf
-            <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Chọn nhân viên</label>
-                <select name="user_id" required
-                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                    <option value="">— Chọn nhân viên —</option>
-                    @foreach($available as $u)
-                        <option value="{{ $u->id }}">{{ $u->name }} (#{{ $u->code }})</option>
-                    @endforeach
-                </select>
-                <p class="text-xs text-gray-400 mt-1">Chỉ hiển thị nhân viên chưa thuộc phòng ban nào.</p>
+        {{-- Search --}}
+        <div class="px-5 pt-4">
+            <input type="text"
+                   x-model="search"
+                   x-ref="searchInput"
+                   x-init="$watch('modalOpen', v => v && $nextTick(() => $refs.searchInput.focus()))"
+                   placeholder="Tìm theo tên hoặc mã số..."
+                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+            <p class="text-xs text-gray-400 mt-1.5">Hiển thị tối đa 10 kết quả · chỉ nhân viên chưa thuộc phòng ban</p>
+        </div>
+
+        {{-- Result list --}}
+        <div class="px-5 py-3 max-h-64 overflow-y-auto">
+            <template x-if="results.length === 0">
+                <div class="text-sm text-gray-400 text-center py-6">Không tìm thấy nhân viên</div>
+            </template>
+            <template x-for="u in results" :key="u.id">
+                <div @click="selected = u"
+                     :class="selected && selected.id === u.id
+                        ? 'bg-blue-50 border-blue-300'
+                        : 'border-transparent hover:bg-gray-50'"
+                     class="flex items-center gap-3 px-3 py-2.5 rounded-lg border cursor-pointer transition-colors mb-1">
+                    <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold shrink-0"
+                         x-text="u.name.slice(0,2).toUpperCase()"></div>
+                    <div class="flex-1 min-w-0">
+                        <div class="text-sm font-medium text-gray-800 truncate" x-text="u.name"></div>
+                        <div class="text-xs text-gray-400" x-text="'#' + u.code"></div>
+                    </div>
+                    <svg x-show="selected && selected.id === u.id"
+                         class="w-4 h-4 text-blue-600 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                    </svg>
+                </div>
+            </template>
+        </div>
+
+        {{-- Footer --}}
+        <div class="px-5 py-4 border-t bg-gray-50 rounded-b-xl">
+            <div x-show="selected" class="mb-3 text-sm text-gray-600">
+                Đã chọn: <span class="font-medium text-gray-800" x-text="selected ? selected.name + ' (#' + selected.code + ')' : ''"></span>
             </div>
-            <div class="flex gap-3">
+            <form method="POST" action="{{ route('departments.employees.add', $department) }}" class="flex gap-3">
+                @csrf
+                <input type="hidden" name="user_id" :value="selected ? selected.id : ''">
                 <button type="submit"
-                        class="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
-                    Thêm
+                        :disabled="!selected"
+                        :class="selected ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-300 cursor-not-allowed'"
+                        class="flex-1 text-white py-2 rounded-lg text-sm font-medium transition-colors">
+                    Thêm vào phòng ban
                 </button>
-                <button type="button"
-                        onclick="document.getElementById('modal-add').classList.add('hidden')"
-                        class="flex-1 bg-gray-100 text-gray-700 py-2 rounded-lg text-sm hover:bg-gray-200">
+                <button type="button" @click="modalOpen = false"
+                        class="flex-1 bg-white border border-gray-300 text-gray-700 py-2 rounded-lg text-sm hover:bg-gray-50">
                     Hủy
                 </button>
-            </div>
-        </form>
+            </form>
+        </div>
     </div>
 </div>
+
+</div>{{-- end x-data wrapper --}}
 
 @endsection

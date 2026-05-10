@@ -19,7 +19,9 @@ FRAME_HEIGHT    = int(os.getenv("FRAME_HEIGHT", "480"))
 PROCESS_EVERY_N = int(os.getenv("PROCESS_EVERY_N", "3"))  # xử lý 1 frame trong N frame
 
 # Sync
-PING_INTERVAL_SECONDS = int(os.getenv("PING_INTERVAL_SECONDS", "60"))
+PING_INTERVAL_SECONDS  = int(os.getenv("PING_INTERVAL_SECONDS", "60"))
+# Tần suất refresh shift data cho cùng 1 người (giây) — bắt kịp thay đổi từ dashboard
+SHIFT_REFRESH_SECONDS  = int(os.getenv("SHIFT_REFRESH_SECONDS", "90"))
 
 # Database SQLite local
 DB_PATH = os.getenv("DB_PATH", "local_attendance.db")

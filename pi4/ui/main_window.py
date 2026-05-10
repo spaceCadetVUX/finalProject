@@ -10,7 +10,7 @@ from PyQt5.QtWidgets import QMainWindow, QStackedWidget
 import api_client
 import local_storage
 from camera import Camera
-from config import COOLDOWN_SECONDS, MIN_CONFIDENCE, PING_INTERVAL_SECONDS, PROCESS_EVERY_N
+from config import COOLDOWN_SECONDS, MIN_CONFIDENCE, PING_INTERVAL_SECONDS, PROCESS_EVERY_N, SHIFT_REFRESH_SECONDS
 from face_recognizer import FaceRecognizer
 from sync_manager import refresh_encodings, sync_pending
 
@@ -166,10 +166,11 @@ class MainWindow(QMainWindow):
 
         local_storage.init_db()
         self.recognizer      = FaceRecognizer()
-        self._session_log    = []   # [{name, code, type, status, time}] trong phiên
-        self._cooldown       = {}   # (user_id, rtype) → float
-        self._current_person = None
-        self._person_visible = False
+        self._session_log      = []   # [{name, code, type, status, time}] trong phiên
+        self._cooldown         = {}   # (user_id, rtype) → float
+        self._current_person   = None
+        self._person_visible   = False
+        self._shift_fetched_at = {}   # user_id → float (thời điểm fetch shift gần nhất)
 
         try:
             self.recognizer.load_encodings(api_client.fetch_encodings())
@@ -240,15 +241,23 @@ class MainWindow(QMainWindow):
         self._person_visible = True
         self.active.set_person_visible(True)
         uid = data["user_id"]
-        if uid != (self._current_person or {}).get("user_id"):
-            # Fetch shift first so we can scope today's attendance to that specific shift.
-            # Employees with multiple shifts per day each have their own attendance row.
+        now_ts = time.time()
+        shift_stale = now_ts - self._shift_fetched_at.get(uid, 0) > SHIFT_REFRESH_SECONDS
+        if uid != (self._current_person or {}).get("user_id") or shift_stale:
+            # Fetch shift + attendance hôm nay (fresh hoặc đã quá hạn cache)
             shift = api_client.fetch_active_shift(uid)
+            self._shift_fetched_at[uid] = now_ts
             shift_schedule_id = (shift or {}).get("shift_schedule_id")
             today = api_client.fetch_today_attendance(uid, shift_schedule_id=shift_schedule_id)
-            data = {**data, **today, "shift": shift}
+            prev = self._current_person or {}
+            data = {
+                **data, **today, "shift": shift,
+                # Giữ lại check-in/out nếu đã ghi trong session này (mới hơn từ DB)
+                "check_in_at":  today.get("check_in_at") or prev.get("check_in_at"),
+                "check_out_at": today.get("check_out_at") or prev.get("check_out_at"),
+            }
         else:
-            # giữ lại thời gian check-in/out và ca đã fetch
+            # Cùng người, shift còn trong window cache — giữ lại dữ liệu hiện tại
             prev = self._current_person or {}
             data = {
                 **data,

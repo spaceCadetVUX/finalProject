@@ -20,17 +20,20 @@ def auth_device() -> dict | None:
         return None
 
 
-def fetch_encodings(updated_since: int | None = None) -> list[dict]:
-    """Tải danh sách face encoding từ server. updated_since là unix timestamp."""
-    params = {}
-    if updated_since:
-        params["updated_since"] = updated_since
-
-    resp = requests.get(f"{SERVER_URL}/api/encodings", headers=HEADERS,
-                        params=params, timeout=TIMEOUT)
+def fetch_encodings() -> list[dict]:
+    """Full sync: tải toàn bộ encoding active từ server (dùng khi khởi động)."""
+    resp = requests.get(f"{SERVER_URL}/api/encodings", headers=HEADERS, timeout=TIMEOUT)
     resp.raise_for_status()
     data = resp.json()
     return data if isinstance(data, list) else data.get("encodings", [])
+
+
+def fetch_encoding_delta(since: int) -> dict:
+    """Delta sync: trả về {encodings, deleted_user_ids} kể từ unix timestamp `since`."""
+    resp = requests.get(f"{SERVER_URL}/api/encodings", headers=HEADERS,
+                        params={"updated_since": since}, timeout=TIMEOUT)
+    resp.raise_for_status()
+    return resp.json()
 
 
 def create_employee(name: str, code: str, encoding: list) -> dict | None:

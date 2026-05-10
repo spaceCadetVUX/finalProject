@@ -28,6 +28,19 @@ class EncodingController extends Controller
             'encoding'   => $fe->encoding,
         ]);
 
+        // Delta sync: trả thêm danh sách user_id bị xóa kể từ lần sync cuối
+        if ($request->filled('updated_since')) {
+            $sinceDate = date('Y-m-d H:i:s', (int) $request->query('updated_since'));
+            $deletedUserIds = FaceEncoding::whereHas('user', fn ($q) =>
+                $q->withTrashed()->whereNotNull('deleted_at')->where('deleted_at', '>=', $sinceDate)
+            )->pluck('user_id')->unique()->values()->all();
+
+            return response()->json([
+                'encodings'        => $encodings,
+                'deleted_user_ids' => $deletedUserIds,
+            ]);
+        }
+
         return response()->json($encodings);
     }
 }

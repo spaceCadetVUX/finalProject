@@ -29,13 +29,27 @@ class FaceRecognizer:
         print(f"[FaceRecognizer] Đã nạp {len(self._encodings)} encoding")
 
     def update_encoding(self, record: dict):
-        """Thêm 1 encoding mới (delta sync)."""
+        """Thêm hoặc cập nhật 1 encoding (delta sync)."""
+        self.remove_encoding(record["user_id"])  # xóa bản cũ nếu có
         self._encodings.append(np.array(record["encoding"]))
         self._user_ids.append(record["user_id"])
         self._names.append(record.get("name", f"User {record['user_id']}"))
         self._codes.append(record.get("code", ""))
         self._roles.append(record.get("role", ""))
         self._departments.append(record.get("department", ""))
+
+    def remove_encoding(self, user_id: int):
+        """Xóa encoding của nhân viên đã bị xóa khỏi bộ nhớ."""
+        indices = [i for i, uid in enumerate(self._user_ids) if uid == user_id]
+        for i in reversed(indices):
+            del self._encodings[i]
+            del self._user_ids[i]
+            del self._names[i]
+            del self._codes[i]
+            del self._roles[i]
+            del self._departments[i]
+        if indices:
+            print(f"[FaceRecognizer] Đã xóa encoding user_id={user_id}")
 
     def recognize(self, frame_rgb: np.ndarray, tolerance: float = 0.5) -> list[dict]:
         return [d for d in self.recognize_all(frame_rgb, tolerance) if d["recognized"]]

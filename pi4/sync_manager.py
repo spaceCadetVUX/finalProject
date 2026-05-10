@@ -1,4 +1,4 @@
-from api_client import post_batch, fetch_encodings, ping
+from api_client import post_batch, fetch_encodings, fetch_encoding_delta, ping
 from local_storage import get_unsynced, mark_synced
 from face_recognizer import FaceRecognizer
 
@@ -24,16 +24,27 @@ def sync_pending(recognizer: FaceRecognizer) -> int:
 
 def refresh_encodings(recognizer: FaceRecognizer, last_sync_ts: int | None) -> int:
     """
-    Tải encoding mới từ server (delta sync).
+    Đồng bộ encoding từ server.
+    - last_sync_ts=None → full replace toàn bộ (dùng khi manual sync hoặc khởi động)
+    - last_sync_ts set  → delta: thêm mới + xóa nhân viên đã bị xóa
     Trả về unix timestamp của lần sync này để dùng cho lần sau.
     """
     import time
     try:
-        new_records = fetch_encodings(updated_since=last_sync_ts)
-        for record in new_records:
-            recognizer.update_encoding(record)
-        if new_records:
-            print(f"[Sync] Cập nhật {len(new_records)} encoding mới")
+        if last_sync_ts is None:
+            records = fetch_encodings()
+            recognizer.load_encodings(records)
+            print(f"[Sync] Full sync: {len(records)} encodings")
+        else:
+            data = fetch_encoding_delta(last_sync_ts)
+            new_records = data.get("encodings", [])
+            deleted_ids = data.get("deleted_user_ids", [])
+            for record in new_records:
+                recognizer.update_encoding(record)
+            for uid in deleted_ids:
+                recognizer.remove_encoding(uid)
+            if new_records or deleted_ids:
+                print(f"[Sync] Delta: +{len(new_records)} mới, -{len(deleted_ids)} đã xóa")
         return int(time.time())
     except Exception as e:
         print(f"[Sync] Lỗi khi tải encoding: {e}")

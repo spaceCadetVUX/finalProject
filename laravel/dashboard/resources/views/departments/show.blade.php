@@ -4,6 +4,7 @@
 @section('header', $department->name)
 
 @section('content')
+<style>[x-cloak]{display:none!important}</style>
 
 {{-- Flash messages --}}
 @if(session('success'))
@@ -155,9 +156,9 @@
      x-transition:leave="transition ease-in duration-100"
      x-transition:leave-start="opacity-100"
      x-transition:leave-end="opacity-0"
-     class="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
-     style="display:none">
-    <div class="bg-white rounded-xl shadow-xl w-full max-w-xs mx-4"
+     x-cloak
+     class="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+    <div class="bg-white rounded-xl shadow-xl mx-4" style="width:400px;max-width:calc(100vw - 2rem);"
          @click.outside="modalOpen = false">
 
         {{-- Header --}}

@@ -217,8 +217,11 @@ class MainWindow(QMainWindow):
         self._clear_timer.stop()
         uid = data["user_id"]
         if uid != (self._current_person or {}).get("user_id"):
-            today = api_client.fetch_today_attendance(uid)
+            # Fetch shift first so we can scope today's attendance to that specific shift.
+            # Employees with multiple shifts per day each have their own attendance row.
             shift = api_client.fetch_active_shift(uid)
+            shift_schedule_id = (shift or {}).get("shift_schedule_id")
+            today = api_client.fetch_today_attendance(uid, shift_schedule_id=shift_schedule_id)
             data = {**data, **today, "shift": shift}
         else:
             # giữ lại thời gian check-in/out và ca đã fetch

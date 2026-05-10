@@ -96,11 +96,17 @@ def post_batch(records: list[dict]) -> int:
     return 0
 
 
-def fetch_today_attendance(user_id: int) -> dict:
-    """Lấy điểm danh hôm nay của nhân viên. Trả về {check_in_at, check_out_at, status}."""
+def fetch_today_attendance(user_id: int, shift_schedule_id: int | None = None) -> dict:
+    """Lấy điểm danh hôm nay.
+    Khi shift_schedule_id được cung cấp, trả về record của ca đó (multi-shift support).
+    Trả về {check_in_at, check_out_at, status}.
+    """
+    params = {}
+    if shift_schedule_id is not None:
+        params["shift_schedule_id"] = shift_schedule_id
     try:
         resp = requests.get(f"{SERVER_URL}/api/attendance/today/{user_id}",
-                            headers=HEADERS, timeout=5)
+                            headers=HEADERS, params=params, timeout=5)
         if resp.status_code == 200:
             return resp.json()
     except requests.RequestException:

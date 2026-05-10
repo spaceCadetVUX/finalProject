@@ -34,6 +34,22 @@ $statusBadge = [
         </span>
     </div>
 
+    {{-- Shift info --}}
+    @if($attendance->shiftSchedule?->template)
+    @php $tpl = $attendance->shiftSchedule->template; @endphp
+    <div class="bg-white rounded-xl shadow-sm p-5 flex items-center gap-3">
+        <span class="w-3 h-3 rounded-full shrink-0" style="background:{{ $tpl->color }}"></span>
+        <div class="flex-1">
+            <div class="text-xs text-gray-400 uppercase tracking-wide font-medium mb-0.5">Ca làm việc</div>
+            <div class="font-medium text-gray-800">{{ $tpl->name }}</div>
+        </div>
+        <div class="text-right text-sm text-gray-500 font-mono">
+            {{ substr($tpl->check_in_time, 0, 5) }} – {{ substr($tpl->check_out_time, 0, 5) }}
+        </div>
+        <div class="text-xs text-gray-400 ml-2">biên độ {{ $tpl->late_tolerance }} phút</div>
+    </div>
+    @endif
+
     {{-- Check-in / Check-out --}}
     <div class="grid grid-cols-2 gap-5">
         <div class="bg-white rounded-xl shadow-sm p-5">

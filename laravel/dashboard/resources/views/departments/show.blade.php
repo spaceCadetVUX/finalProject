@@ -157,7 +157,7 @@
      x-transition:leave-end="opacity-0"
      class="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
      style="display:none">
-    <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4"
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-xs mx-4"
          @click.outside="modalOpen = false">
 
         {{-- Header --}}

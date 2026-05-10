@@ -88,6 +88,18 @@
             </a>
             @endif
 
+            {{-- Phân Ca: admin only --}}
+            @if(in_array($role, ['super_admin', 'admin']))
+            <a href="{{ route('shift-schedules.index') }}"
+               class="flex items-center gap-3 px-3 py-2 rounded-lg {{ request()->routeIs('shift-schedules.*') ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700' }}">
+                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+                Phân Ca
+            </a>
+            @endif
+
             {{-- Chấm Công: admin/manager --}}
             @if(in_array($role, ['super_admin', 'admin', 'manager']))
             <a href="{{ route('attendances.index') }}"

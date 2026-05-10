@@ -8,6 +8,7 @@ use App\Http\Controllers\Web\DeviceController;
 use App\Http\Controllers\Web\EmployeeController;
 use App\Http\Controllers\Web\MyAttendanceController;
 use App\Http\Controllers\Web\ReportController;
+use App\Http\Controllers\Web\ShiftScheduleController;
 use App\Http\Controllers\Web\ShiftTemplateController;
 use Illuminate\Support\Facades\Route;
 
@@ -39,6 +40,8 @@ Route::middleware(['auth'])->group(function () {
 
         Route::resource('departments', DepartmentController::class);
         Route::resource('shifts', ShiftTemplateController::class);
+        Route::resource('shift-schedules', ShiftScheduleController::class)->only(['index', 'create', 'store', 'destroy']);
+        Route::post('shift-schedules/{shiftSchedule}/toggle', [ShiftScheduleController::class, 'toggle'])->name('shift-schedules.toggle');
         Route::post('departments/{department}/employees', [DepartmentController::class, 'addEmployee'])->name('departments.employees.add');
         Route::delete('departments/{department}/employees/{user}', [DepartmentController::class, 'removeEmployee'])->name('departments.employees.remove');
 

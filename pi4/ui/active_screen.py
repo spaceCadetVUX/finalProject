@@ -8,20 +8,6 @@ from PyQt5.QtWidgets import (QFrame, QGraphicsOpacityEffect, QHBoxLayout, QLabel
 
 TIMEOUT_MS = 600_000
 
-STATUS_COLOR = {
-    "present":     "#3fb950",
-    "late":        "#d29922",
-    "early_leave": "#f85149",
-    "offline":     "#8b949e",
-}
-
-STATUS_TEXT = {
-    "present":     "ĐIỂM DANH THÀNH CÔNG",
-    "late":        "VÀO TRỄ",
-    "early_leave": "VỀ SỚM",
-    "offline":     "LƯU OFFLINE",
-}
-
 ROLE_MAP = {
     "super_admin": "Quản Trị Hệ Thống",
     "admin":       "Quản Trị Viên",
@@ -42,13 +28,19 @@ def _crop_fill(frame: np.ndarray, target_w: int, target_h: int) -> np.ndarray:
 
 # ─────────────────────────────────────────────────────────────────────────────
 class ConfirmPopup(QWidget):
-    """Overlay xác nhận điểm danh — chỉ tắt khi bấm OK."""
-    confirmed = pyqtSignal()
+    """
+    Overlay xác nhận điểm danh.
+    - Chế độ pre-confirm: Hủy + Xác Nhận (trước khi ghi nhận)
+    - Chế độ info:        OK (thông báo đã điểm danh rồi)
+    """
+    confirmed = pyqtSignal(str)  # rtype — khi bấm Xác Nhận
+    cancelled = pyqtSignal()     # khi bấm Hủy hoặc OK (info)
 
     def __init__(self, parent):
         super().__init__(parent)
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.hide()
+        self._rtype = ""
         self._build()
 
     def _build(self):
@@ -56,7 +48,6 @@ class ConfirmPopup(QWidget):
         root.setContentsMargins(0, 0, 0, 0)
         root.setAlignment(Qt.AlignCenter)
 
-        # Card
         card = QWidget()
         card.setStyleSheet("""
             background: #161b22;
@@ -68,19 +59,20 @@ class ConfirmPopup(QWidget):
         cl.setContentsMargins(32, 28, 32, 28)
         cl.setSpacing(0)
 
-        # Icon + status
-        self.icon_lbl = QLabel("✓")
+        # Icon
+        self.icon_lbl = QLabel("?")
         self.icon_lbl.setAlignment(Qt.AlignCenter)
         self.icon_lbl.setFont(QFont("Arial", 36))
-        self.icon_lbl.setStyleSheet("color: #3fb950; background: transparent; border: none;")
+        self.icon_lbl.setStyleSheet("color: white; background: transparent; border: none;")
         cl.addWidget(self.icon_lbl)
         cl.addSpacing(4)
 
-        self.status_lbl = QLabel("ĐIỂM DANH THÀNH CÔNG")
+        # Title
+        self.status_lbl = QLabel("")
         self.status_lbl.setAlignment(Qt.AlignCenter)
         self.status_lbl.setFont(QFont("Arial", 13, QFont.Bold))
         self.status_lbl.setStyleSheet(
-            "color: #3fb950; letter-spacing: 2px; background: transparent; border: none;")
+            "color: white; letter-spacing: 2px; background: transparent; border: none;")
         cl.addWidget(self.status_lbl)
 
         cl.addSpacing(20)
@@ -92,7 +84,8 @@ class ConfirmPopup(QWidget):
         self.name_lbl.setAlignment(Qt.AlignCenter)
         self.name_lbl.setFont(QFont("Arial", 22, QFont.Bold))
         self.name_lbl.setWordWrap(True)
-        self.name_lbl.setStyleSheet("color: white; letter-spacing: 1px; background: transparent; border: none;")
+        self.name_lbl.setStyleSheet(
+            "color: white; letter-spacing: 1px; background: transparent; border: none;")
         cl.addWidget(self.name_lbl)
         cl.addSpacing(6)
 
@@ -100,7 +93,8 @@ class ConfirmPopup(QWidget):
         self.code_lbl = QLabel()
         self.code_lbl.setAlignment(Qt.AlignCenter)
         self.code_lbl.setStyleSheet(
-            "color: rgba(255,255,255,0.4); font-size: 13px; letter-spacing: 2px; background: transparent; border: none;")
+            "color: rgba(255,255,255,0.4); font-size: 13px; "
+            "letter-spacing: 2px; background: transparent; border: none;")
         cl.addWidget(self.code_lbl)
         cl.addSpacing(4)
 
@@ -108,7 +102,8 @@ class ConfirmPopup(QWidget):
         self.dept_lbl = QLabel()
         self.dept_lbl.setAlignment(Qt.AlignCenter)
         self.dept_lbl.setStyleSheet(
-            "color: #58a6ff; font-size: 14px; letter-spacing: 1px; background: transparent; border: none;")
+            "color: #58a6ff; font-size: 14px; letter-spacing: 1px; "
+            "background: transparent; border: none;")
         cl.addWidget(self.dept_lbl)
 
         cl.addSpacing(20)
@@ -120,24 +115,63 @@ class ConfirmPopup(QWidget):
         self.action_lbl.setAlignment(Qt.AlignCenter)
         self.action_lbl.setFont(QFont("Arial", 16))
         self.action_lbl.setStyleSheet(
-            "color: rgba(255,255,255,0.8); letter-spacing: 1px; background: transparent; border: none;")
+            "color: rgba(255,255,255,0.8); letter-spacing: 1px; "
+            "background: transparent; border: none;")
         cl.addWidget(self.action_lbl)
 
         cl.addSpacing(24)
 
-        # OK button
-        btn_ok = QPushButton("OK")
-        btn_ok.setFixedHeight(52)
-        btn_ok.setFont(QFont("Arial", 15, QFont.Bold))
-        btn_ok.setStyleSheet("""
+        # ── Hủy + Xác Nhận (pre-confirm mode) ────────────────────────────
+        self._two_btn_widget = QWidget()
+        self._two_btn_widget.setStyleSheet("background: transparent; border: none;")
+        two_row = QHBoxLayout(self._two_btn_widget)
+        two_row.setContentsMargins(0, 0, 0, 0)
+        two_row.setSpacing(12)
+
+        btn_cancel = QPushButton("Hủy")
+        btn_cancel.setFixedHeight(52)
+        btn_cancel.setFont(QFont("Arial", 14))
+        btn_cancel.setStyleSheet("""
+            QPushButton {
+                background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.6);
+                border-radius: 10px; border: 1px solid rgba(255,255,255,0.18);
+                letter-spacing: 2px;
+            }
+            QPushButton:pressed { background: rgba(255,255,255,0.14); }
+        """)
+        btn_cancel.clicked.connect(self._on_cancel)
+        two_row.addWidget(btn_cancel)
+
+        btn_confirm = QPushButton("Xác Nhận")
+        btn_confirm.setFixedHeight(52)
+        btn_confirm.setFont(QFont("Arial", 14, QFont.Bold))
+        btn_confirm.setStyleSheet("""
             QPushButton {
                 background: #238636; color: white;
-                border-radius: 10px; border: none; letter-spacing: 3px;
+                border-radius: 10px; border: none; letter-spacing: 2px;
             }
             QPushButton:pressed { background: #2ea043; }
         """)
-        btn_ok.clicked.connect(self._on_ok)
-        cl.addWidget(btn_ok)
+        btn_confirm.clicked.connect(self._on_confirm)
+        two_row.addWidget(btn_confirm)
+
+        cl.addWidget(self._two_btn_widget)
+
+        # ── OK (info mode) ────────────────────────────────────────────────
+        self._btn_ok = QPushButton("OK")
+        self._btn_ok.setFixedHeight(52)
+        self._btn_ok.setFont(QFont("Arial", 15, QFont.Bold))
+        self._btn_ok.setStyleSheet("""
+            QPushButton {
+                background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.7);
+                border-radius: 10px; border: 1px solid rgba(255,255,255,0.2);
+                letter-spacing: 3px;
+            }
+            QPushButton:pressed { background: rgba(255,255,255,0.15); }
+        """)
+        self._btn_ok.clicked.connect(self._on_cancel)
+        self._btn_ok.hide()
+        cl.addWidget(self._btn_ok)
 
         root.addWidget(card)
 
@@ -152,37 +186,57 @@ class ConfirmPopup(QWidget):
         painter = QPainter(self)
         painter.fillRect(self.rect(), QColor(0, 0, 0, 160))
 
-    def show_confirm(self, data: dict, rtype: str, status: str, time_str: str):
-        color  = STATUS_COLOR.get(status, "#58a6ff")
-        text   = STATUS_TEXT.get(status, "HOÀN TẤT")
-        icon   = "✓" if status != "offline" else "💾"
-        action = "↑  VÀO LÀM" if rtype == "check_in" else "↓  RA VỀ"
-
+    def _fill(self, data: dict, icon: str, icon_color: str,
+              title: str, title_color: str, action_text: str):
         self.icon_lbl.setText(icon)
         self.icon_lbl.setStyleSheet(
-            f"color: {color}; font-size: 36px; background: transparent; border: none;")
-        self.status_lbl.setText(text)
+            f"color: {icon_color}; font-size: 36px; background: transparent; border: none;")
+        self.status_lbl.setText(title)
         self.status_lbl.setStyleSheet(
-            f"color: {color}; font-size: 13px; font-weight: bold; "
+            f"color: {title_color}; font-size: 13px; font-weight: bold; "
             f"letter-spacing: 2px; background: transparent; border: none;")
-
         name = data.get("name", f"User {data.get('user_id', '')}").upper()
         self.name_lbl.setText(name)
-
         code = data.get("code", "")
         self.code_lbl.setText(f"#{code}" if code else f"ID {data.get('user_id', '')}")
-
         dept = data.get("department") or ""
         self.dept_lbl.setText(dept.upper() if dept else "")
         self.dept_lbl.setVisible(bool(dept))
+        self.action_lbl.setText(action_text)
 
-        self.action_lbl.setText(f"{action}   lúc   {time_str}")
+    def show_pre_confirm(self, data: dict, rtype: str):
+        """Hiện popup xác nhận TRƯỚC khi ghi nhận điểm danh."""
+        self._rtype = rtype
+        icon  = "↑" if rtype == "check_in" else "↓"
+        color = "#3fb950" if rtype == "check_in" else "#58a6ff"
+        label = "VÀO LÀM" if rtype == "check_in" else "RA VỀ"
+        t = datetime.now().strftime("%H:%M")
+        self._fill(data, icon, color, "XÁC NHẬN ĐIỂM DANH", "white",
+                   f"{label}   lúc   {t}")
+        self._two_btn_widget.show()
+        self._btn_ok.hide()
         self.show()
         self.raise_()
 
-    def _on_ok(self):
+    def show_info(self, data: dict, rtype: str, time_str: str,
+                  message: str, color: str):
+        """Hiện popup thông báo chỉ có OK (đã điểm danh rồi)."""
+        arrow = "↑" if rtype == "check_in" else "↓"
+        label = "VÀO LÀM" if rtype == "check_in" else "RA VỀ"
+        self._fill(data, "ℹ", color, message, color,
+                   f"{arrow}  {label}   lúc   {time_str}")
+        self._two_btn_widget.hide()
+        self._btn_ok.show()
+        self.show()
+        self.raise_()
+
+    def _on_confirm(self):
         self.hide()
-        self.confirmed.emit()
+        self.confirmed.emit(self._rtype)
+
+    def _on_cancel(self):
+        self.hide()
+        self.cancelled.emit()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -201,7 +255,8 @@ class ActiveScreen(QWidget):
         self._setup_animations()
 
         self.popup = ConfirmPopup(self)
-        self.popup.confirmed.connect(self._on_popup_confirmed)
+        self.popup.confirmed.connect(self._on_pre_confirmed)
+        self.popup.cancelled.connect(self._on_popup_cancelled)
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -343,7 +398,7 @@ class ActiveScreen(QWidget):
         self.btn_checkin.setFont(QFont("Arial", 14, QFont.Bold))
         self.btn_checkin.setStyleSheet(self._btn_style("#3fb950"))
         self.btn_checkin.setEnabled(False)
-        self.btn_checkin.clicked.connect(lambda: self.record_requested.emit("check_in"))
+        self.btn_checkin.clicked.connect(lambda: self._pre_confirm("check_in"))
         btn_row.addWidget(self.btn_checkin)
 
         self.btn_checkout = QPushButton("↓   RA VỀ")
@@ -351,7 +406,7 @@ class ActiveScreen(QWidget):
         self.btn_checkout.setFont(QFont("Arial", 14, QFont.Bold))
         self.btn_checkout.setStyleSheet(self._btn_style("#58a6ff"))
         self.btn_checkout.setEnabled(False)
-        self.btn_checkout.clicked.connect(lambda: self.record_requested.emit("check_out"))
+        self.btn_checkout.clicked.connect(lambda: self._pre_confirm("check_out"))
         btn_row.addWidget(self.btn_checkout)
 
         rl.addLayout(btn_row)
@@ -409,6 +464,27 @@ class ActiveScreen(QWidget):
         self._anim.setDuration(400)
         self._anim.setEasingCurve(QEasingCurve.OutCubic)
 
+    # ── Popup handlers ────────────────────────────────────────────────────────
+
+    def _pre_confirm(self, rtype: str):
+        """Bấm nút → hiện popup xác nhận trước khi ghi nhận."""
+        if not self._current_person:
+            return
+        self.btn_checkin.setEnabled(False)
+        self.btn_checkout.setEnabled(False)
+        self.popup.show_pre_confirm(self._current_person, rtype)
+
+    def _on_pre_confirmed(self, rtype: str):
+        """Người dùng bấm Xác Nhận → emit signal để main_window ghi nhận."""
+        self.record_requested.emit(rtype)
+
+    def _on_popup_cancelled(self):
+        """Người dùng bấm Hủy hoặc OK (info) → khôi phục nút."""
+        self.btn_checkin.setEnabled(True)
+        self.btn_checkout.setEnabled(True)
+
+    # ── Public API ────────────────────────────────────────────────────────────
+
     def set_frame(self, frame: np.ndarray):
         h = max(self.height(), 480)
         cropped = _crop_fill(frame, 400, h)
@@ -462,6 +538,7 @@ class ActiveScreen(QWidget):
         self._anim.start()
 
     def show_result(self, data: dict, status: str):
+        """Gọi sau khi ghi nhận thành công — cập nhật giờ và khôi phục nút."""
         rtype = data.get("record_type", "check_in")
         t     = datetime.now().strftime("%H:%M")
 
@@ -472,40 +549,21 @@ class ActiveScreen(QWidget):
             self.co_time.setText(t)
             self._current_person = {**data, "check_out_at": t}
 
-        self.btn_checkin.setEnabled(False)
-        self.btn_checkout.setEnabled(False)
-        self.popup.show_confirm(data, rtype, status, t)
-
-    def show_already_recorded(self, rtype: str):
-        action = "VÀO LÀM" if rtype == "check_in" else "RA VỀ"
-        # Hiện popup thông báo đã điểm danh rồi (không phải xác nhận)
-        if self._current_person:
-            t = (self._current_person.get("check_in_at") if rtype == "check_in"
-                 else self._current_person.get("check_out_at")) or "—"
-            data = self._current_person
-            # dùng popup với status đặc biệt
-            self.popup.icon_lbl.setText("ℹ")
-            self.popup.icon_lbl.setStyleSheet(
-                "color: #8b949e; font-size: 36px; background: transparent; border: none;")
-            self.popup.status_lbl.setText(f"ĐÃ ĐIỂM DANH {action} RỒI")
-            self.popup.status_lbl.setStyleSheet(
-                "color: #8b949e; font-size: 13px; font-weight: bold; "
-                "letter-spacing: 2px; background: transparent; border: none;")
-            self.popup.name_lbl.setText(data.get("name", "").upper())
-            code = data.get("code", "")
-            self.popup.code_lbl.setText(f"#{code}" if code else "")
-            dept = data.get("department") or ""
-            self.popup.dept_lbl.setText(dept.upper() if dept else "")
-            self.popup.dept_lbl.setVisible(bool(dept))
-            self.popup.action_lbl.setText(f"{'↑' if rtype == 'check_in' else '↓'}  {action}   lúc   {t}")
-            self.popup.show()
-            self.popup.raise_()
-
-    def _on_popup_confirmed(self):
         self.btn_checkin.setEnabled(True)
         self.btn_checkout.setEnabled(True)
-        if self._current_person:
-            self.show_person(self._current_person)
+
+    def show_already_recorded(self, rtype: str):
+        """Hiện popup thông báo đã điểm danh rồi (chỉ có OK)."""
+        if not self._current_person:
+            return
+        t = (self._current_person.get("check_in_at") if rtype == "check_in"
+             else self._current_person.get("check_out_at")) or "—"
+        label = "VÀO LÀM" if rtype == "check_in" else "RA VỀ"
+        self.popup.show_info(
+            self._current_person, rtype, t,
+            message=f"ĐÃ ĐIỂM DANH {label} RỒI",
+            color="#8b949e",
+        )
 
     def update_log(self, entries: list):
         pass

@@ -7,6 +7,7 @@ use App\Models\Attendance;
 use App\Models\ShiftSchedule;
 use App\Models\User;
 use App\Services\AttendanceStatusService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -40,9 +41,14 @@ class AttendanceApiController extends Controller
             $imagePath = $this->saveImage($data['image'], $data['user_id'], $workDate, $data['type']);
         }
 
-        $shift = !empty($data['shift_schedule_id'])
-            ? ShiftSchedule::with('template')->find($data['shift_schedule_id'])
-            : null;
+        if (!empty($data['shift_schedule_id'])) {
+            $shift = ShiftSchedule::with('template')->find($data['shift_schedule_id']);
+        } else {
+            $shift = $this->resolveActiveShift($user, $workDate);
+            if (!$shift) {
+                return response()->json(['message' => 'No active shift for this employee on this date'], 422);
+            }
+        }
 
         $attendance = $this->findOrCreateAttendance(
             $data['user_id'], $workDate, $shift?->id, $device->id
@@ -104,9 +110,16 @@ class AttendanceApiController extends Controller
                     $imagePath = $this->saveImage($record['image'], $record['user_id'], $workDate, $record['type']);
                 }
 
-                $shift = !empty($record['shift_schedule_id'])
-                    ? ShiftSchedule::with('template')->find($record['shift_schedule_id'])
-                    : null;
+                if (!empty($record['shift_schedule_id'])) {
+                    $shift = ShiftSchedule::with('template')->find($record['shift_schedule_id']);
+                } else {
+                    $shift = $this->resolveActiveShift($user, $workDate);
+                    if (!$shift) {
+                        $skipped++;
+                        $errors[$index] = 'No active shift for this employee on this date';
+                        continue;
+                    }
+                }
 
                 $attendance = $this->findOrCreateAttendance(
                     $record['user_id'], $workDate, $shift?->id, $device->id
@@ -128,6 +141,36 @@ class AttendanceApiController extends Controller
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    /**
+     * Tìm ca active của nhân viên trong ngày workDate.
+     * Logic giống ShiftActiveController: ưu tiên employee-level trước department-level.
+     */
+    private function resolveActiveShift(User $user, string $workDate): ?ShiftSchedule
+    {
+        $date = Carbon::parse($workDate);
+
+        $candidates = ShiftSchedule::with('template')
+            ->where('is_active', true)
+            ->where('start_date', '<=', $date)
+            ->where(fn($q) => $q->whereNull('end_date')->orWhere('end_date', '>=', $date))
+            ->where(function ($q) use ($user) {
+                $q->where(fn($q2) => $q2
+                    ->where('assignee_type', 'employee')
+                    ->where('assignee_id', $user->id));
+                if ($user->department_id) {
+                    $q->orWhere(fn($q2) => $q2
+                        ->where('assignee_type', 'department')
+                        ->where('assignee_id', $user->department_id));
+                }
+            })
+            ->get();
+
+        return $candidates
+            ->filter(fn($s) => $s->appliesToDate($date))
+            ->sortBy(fn($s) => $s->assignee_type === 'employee' ? 0 : 1)
+            ->first();
+    }
 
     /**
      * When shift_schedule_id is given, key on (user_id, work_date, shift_schedule_id)

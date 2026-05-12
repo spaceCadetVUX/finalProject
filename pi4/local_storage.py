@@ -11,25 +11,34 @@ def init_db():
     with get_conn() as conn:
         conn.execute("""
             CREATE TABLE IF NOT EXISTS pending_records (
-                id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id     INTEGER NOT NULL,
-                type        TEXT NOT NULL,       -- 'check_in' | 'check_out'
-                confidence  REAL NOT NULL,
-                image_b64   TEXT,
-                recorded_at TEXT NOT NULL,
-                synced      INTEGER DEFAULT 0    -- 0 = chưa sync, 1 = đã sync
+                id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id            INTEGER NOT NULL,
+                type               TEXT NOT NULL,       -- 'check_in' | 'check_out'
+                confidence         REAL NOT NULL,
+                image_b64          TEXT,
+                recorded_at        TEXT NOT NULL,
+                shift_schedule_id  INTEGER,             -- NULL nếu không có ca
+                synced             INTEGER DEFAULT 0    -- 0 = chưa sync, 1 = đã sync
             )
         """)
         conn.commit()
+        # Migration: thêm cột cho DB cũ chưa có shift_schedule_id
+        try:
+            conn.execute("ALTER TABLE pending_records ADD COLUMN shift_schedule_id INTEGER")
+            conn.commit()
+        except Exception:
+            pass  # cột đã tồn tại
 
 
 def save_record(user_id: int, record_type: str, confidence: float,
-                image_b64: str | None, recorded_at: str):
+                image_b64: str | None, recorded_at: str,
+                shift_schedule_id: int | None = None):
     with get_conn() as conn:
         conn.execute(
-            "INSERT INTO pending_records (user_id, type, confidence, image_b64, recorded_at) "
-            "VALUES (?, ?, ?, ?, ?)",
-            (user_id, record_type, confidence, image_b64, recorded_at)
+            "INSERT INTO pending_records "
+            "(user_id, type, confidence, image_b64, recorded_at, shift_schedule_id) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (user_id, record_type, confidence, image_b64, recorded_at, shift_schedule_id)
         )
         conn.commit()
 
@@ -37,12 +46,19 @@ def save_record(user_id: int, record_type: str, confidence: float,
 def get_unsynced() -> list[dict]:
     with get_conn() as conn:
         rows = conn.execute(
-            "SELECT id, user_id, type, confidence, image_b64, recorded_at "
+            "SELECT id, user_id, type, confidence, image_b64, recorded_at, shift_schedule_id "
             "FROM pending_records WHERE synced = 0 ORDER BY id"
         ).fetchall()
     return [
-        {"_local_id": r[0], "user_id": r[1], "type": r[2],
-         "confidence": r[3], "image": r[4], "recorded_at": r[5]}
+        {
+            "_local_id":        r[0],
+            "user_id":          r[1],
+            "type":             r[2],
+            "confidence":       r[3],
+            "image":            r[4],
+            "recorded_at":      r[5],
+            "shift_schedule_id": r[6],
+        }
         for r in rows
     ]
 

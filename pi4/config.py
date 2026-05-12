@@ -21,7 +21,7 @@ PROCESS_EVERY_N = int(os.getenv("PROCESS_EVERY_N", "3"))  # xử lý 1 frame tro
 # Sync
 PING_INTERVAL_SECONDS      = int(os.getenv("PING_INTERVAL_SECONDS", "60"))
 # Tần suất refresh shift data cho cùng 1 người (giây)
-SHIFT_REFRESH_SECONDS      = int(os.getenv("SHIFT_REFRESH_SECONDS", "90"))
+SHIFT_REFRESH_SECONDS      = int(os.getenv("SHIFT_REFRESH_SECONDS", "15"))
 # Tần suất refresh điểm danh hôm nay — ngắn để hiện real-time sau khi chấm công
 ATTENDANCE_REFRESH_SECONDS = int(os.getenv("ATTENDANCE_REFRESH_SECONDS", "10"))
 

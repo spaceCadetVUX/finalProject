@@ -116,6 +116,7 @@ class CameraThread(QThread):
 
 class SyncThread(QThread):
     online_status = pyqtSignal(bool)
+    sync_done     = pyqtSignal()   # phát sau mỗi lần sync thành công
 
     def __init__(self, recognizer: FaceRecognizer):
         super().__init__()
@@ -130,6 +131,7 @@ class SyncThread(QThread):
             if online:
                 sync_pending(self.recognizer)
                 self._last_sync = refresh_encodings(self.recognizer, self._last_sync)
+                self.sync_done.emit()
             for _ in range(PING_INTERVAL_SECONDS * 10):
                 if not self._running:
                     break
@@ -218,6 +220,7 @@ class MainWindow(QMainWindow):
         self.sync_thread = SyncThread(self.recognizer)
         self.sync_thread.online_status.connect(self.idle.set_online)
         self.sync_thread.online_status.connect(self.active.set_online)
+        self.sync_thread.sync_done.connect(self._on_sync_caches_cleared)
         self.sync_thread.start()
 
     def _dispatch_frame(self, frame):
@@ -374,10 +377,17 @@ class MainWindow(QMainWindow):
         self.idle.update_stats(len(self._session_log))
         self.active.show_result(data, status)
 
+    def _on_sync_caches_cleared(self):
+        """Gọi sau mỗi lần sync (auto hoặc manual) — xoá shift/attendance cache
+        để lần nhận diện tiếp theo lấy dữ liệu mới nhất từ server."""
+        self._shift_fetched_at.clear()
+        self._attendance_fetched_at.clear()
+
     def _on_manual_sync(self):
         self.settings.set_sync_status("Đang đồng bộ...", "#57606a")
         t = ManualSyncThread(self.recognizer)
         t.finished.connect(self.settings.set_sync_status)
+        t.finished.connect(lambda msg, color: self._on_sync_caches_cleared())
         t.finished.connect(lambda msg, color: setattr(
             self.sync_thread, '_last_sync', int(time.time())))
         t.start()

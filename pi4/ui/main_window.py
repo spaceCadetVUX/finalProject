@@ -10,7 +10,8 @@ from PyQt5.QtWidgets import QMainWindow, QStackedWidget
 import api_client
 import local_storage
 from camera import Camera
-from config import COOLDOWN_SECONDS, MIN_CONFIDENCE, PING_INTERVAL_SECONDS, PROCESS_EVERY_N, SHIFT_REFRESH_SECONDS
+from config import (ATTENDANCE_REFRESH_SECONDS, COOLDOWN_SECONDS, MIN_CONFIDENCE,
+                    PING_INTERVAL_SECONDS, PROCESS_EVERY_N, SHIFT_REFRESH_SECONDS)
 from face_recognizer import FaceRecognizer
 from sync_manager import refresh_encodings, sync_pending
 
@@ -167,10 +168,11 @@ class MainWindow(QMainWindow):
         local_storage.init_db()
         self.recognizer      = FaceRecognizer()
         self._session_log      = []   # [{name, code, type, status, time}] trong phiên
-        self._cooldown         = {}   # (user_id, rtype) → float
-        self._current_person   = None
-        self._person_visible   = False
-        self._shift_fetched_at = {}   # user_id → float (thời điểm fetch shift gần nhất)
+        self._cooldown              = {}   # (user_id, rtype) → float
+        self._current_person        = None
+        self._person_visible        = False
+        self._shift_fetched_at      = {}   # user_id → float
+        self._attendance_fetched_at = {}   # user_id → float (TTL ngắn, real-time)
 
         try:
             self.recognizer.load_encodings(api_client.fetch_encodings())
@@ -240,31 +242,46 @@ class MainWindow(QMainWindow):
         self._clear_timer.stop()
         self._person_visible = True
         self.active.set_person_visible(True)
-        uid = data["user_id"]
+        uid    = data["user_id"]
         now_ts = time.time()
-        shift_stale = now_ts - self._shift_fetched_at.get(uid, 0) > SHIFT_REFRESH_SECONDS
-        if uid != (self._current_person or {}).get("user_id") or shift_stale:
-            # Fetch shift + attendance hôm nay (fresh hoặc đã quá hạn cache)
-            shift = api_client.fetch_active_shift(uid)
+        prev   = self._current_person or {}
+
+        is_new          = uid != prev.get("user_id")
+        shift_stale      = now_ts - self._shift_fetched_at.get(uid, 0)      > SHIFT_REFRESH_SECONDS
+        attendance_stale = now_ts - self._attendance_fetched_at.get(uid, 0) > ATTENDANCE_REFRESH_SECONDS
+
+        # ── Shift: re-fetch khi người mới hoặc cache hết hạn (90s) ──────────
+        if is_new or shift_stale:
+            shift_data = api_client.fetch_active_shift(uid)
             self._shift_fetched_at[uid] = now_ts
-            shift_schedule_id = (shift or {}).get("shift_schedule_id")
-            today = api_client.fetch_today_attendance(uid, shift_schedule_id=shift_schedule_id)
-            prev = self._current_person or {}
-            data = {
-                **data, **today, "shift": shift,
-                # Giữ lại check-in/out nếu đã ghi trong session này (mới hơn từ DB)
-                "check_in_at":  today.get("check_in_at") or prev.get("check_in_at"),
-                "check_out_at": today.get("check_out_at") or prev.get("check_out_at"),
-            }
+            shifts_today = shift_data.get("today", [])
+            next_shift   = shift_data.get("next_shift")
         else:
-            # Cùng người, shift còn trong window cache — giữ lại dữ liệu hiện tại
-            prev = self._current_person or {}
+            shifts_today = prev.get("shifts_today", [])
+            next_shift   = prev.get("next_shift")
+
+        # ── Attendance: re-fetch khi người mới, cache hết hạn (10s),
+        #    hoặc bị invalidate ngay sau khi ghi nhận ────────────────────────
+        if is_new or attendance_stale:
+            first_shift_id = shifts_today[0]["shift_schedule_id"] if shifts_today else None
+            today_att = api_client.fetch_today_attendance(uid, shift_schedule_id=first_shift_id)
+            self._attendance_fetched_at[uid] = now_ts
             data = {
                 **data,
+                "shifts_today": shifts_today,
+                "next_shift":   next_shift,
+                "check_in_at":  today_att.get("check_in_at"),
+                "check_out_at": today_att.get("check_out_at"),
+            }
+        else:
+            data = {
+                **data,
+                "shifts_today": shifts_today,
+                "next_shift":   next_shift,
                 "check_in_at":  prev.get("check_in_at"),
                 "check_out_at": prev.get("check_out_at"),
-                "shift":        prev.get("shift"),
             }
+
         self._current_person = data
         idx = self.stack.currentIndex()
         if idx == 0:
@@ -293,25 +310,32 @@ class MainWindow(QMainWindow):
         if not self._person_visible:
             return
 
-        # Từ chối nếu không có ca làm việc được phân hôm nay
-        shift = person.get("shift")
-        if shift is None:
+        # Từ chối nếu không có ca hôm nay
+        shifts_today = person.get("shifts_today", [])
+        if not shifts_today:
             self.active.show_no_shift_error("BẠN KHÔNG CÓ CA\nTẠI THỜI ĐIỂM NÀY")
             return
 
-        # Từ chối nếu ngoài cửa sổ giờ ca (2h trước check_in ~ 2h sau check_out)
-        try:
-            now_dt   = datetime.now()
-            today    = now_dt.strftime("%Y-%m-%d")
-            ci_dt    = datetime.strptime(f"{today} {shift['check_in_time']}",  "%Y-%m-%d %H:%M")
-            co_dt    = datetime.strptime(f"{today} {shift['check_out_time']}", "%Y-%m-%d %H:%M")
-            if not (ci_dt - timedelta(hours=2) <= now_dt <= co_dt + timedelta(hours=2)):
-                self.active.show_no_shift_error(
-                    f"NGOÀI GIỜ CA\n{shift['check_in_time']} – {shift['check_out_time']}"
-                )
-                return
-        except (KeyError, ValueError):
-            pass
+        # Tìm ca phù hợp với thời điểm hiện tại (trong cửa sổ ±2h)
+        now_dt    = datetime.now()
+        today_str = now_dt.strftime("%Y-%m-%d")
+        active_shift = None
+        for s in shifts_today:
+            try:
+                ci_dt = datetime.strptime(f"{today_str} {s['check_in_time']}", "%Y-%m-%d %H:%M")
+                co_dt = datetime.strptime(f"{today_str} {s['check_out_time']}", "%Y-%m-%d %H:%M")
+                if ci_dt - timedelta(hours=2) <= now_dt <= co_dt + timedelta(hours=2):
+                    active_shift = s
+                    break
+            except (KeyError, ValueError):
+                continue
+
+        if active_shift is None:
+            times = " / ".join(
+                f"{s['check_in_time']}–{s['check_out_time']}" for s in shifts_today
+            )
+            self.active.show_no_shift_error(f"NGOÀI GIỜ CA\n{times}")
+            return
 
         uid = person["user_id"]
         now = time.time()
@@ -324,7 +348,7 @@ class MainWindow(QMainWindow):
         result = api_client.post_attendance(
             uid, rtype, person["confidence"],
             None, recorded_at,
-            shift_schedule_id=shift.get("shift_schedule_id"),
+            shift_schedule_id=active_shift.get("shift_schedule_id"),
         )
         status = result.get("status", "present") if result else "offline"
         if not result:
@@ -332,6 +356,9 @@ class MainWindow(QMainWindow):
                 uid, rtype, person["confidence"],
                 None, recorded_at,
             )
+
+        # Invalidate attendance cache → lần nhận diện tiếp (~0.5s) sẽ re-fetch từ server
+        self._attendance_fetched_at.pop(uid, None)
 
         data = {**person, "record_type": rtype, "recorded_at": recorded_at}
         self._session_log.append({

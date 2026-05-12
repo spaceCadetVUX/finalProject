@@ -117,19 +117,22 @@ def fetch_today_attendance(user_id: int, shift_schedule_id: int | None = None) -
     return {"check_in_at": None, "check_out_at": None, "status": None}
 
 
-def fetch_active_shift(user_id: int) -> dict | None:
-    """Lấy ca làm việc active hôm nay.
-    Trả về {shift_schedule_id, shift_name, check_in_time, check_out_time, late_tolerance}
-    hoặc None nếu không có ca / lỗi.
+def fetch_active_shift(user_id: int) -> dict:
+    """Lấy ca làm việc của nhân viên.
+    Trả về {today: [...shifts], next_shift: {date, ...} | None}
+    today: danh sách ca hôm nay (có thể rỗng)
+    next_shift: ca gần nhất tương lai nếu hôm nay không có ca
     """
     try:
         resp = requests.get(f"{SERVER_URL}/api/shifts/active/{user_id}",
                             headers=HEADERS, timeout=5)
         if resp.status_code == 200:
-            return resp.json()  # server trả JSON null → Python None
+            data = resp.json()
+            if isinstance(data, dict):
+                return data
     except requests.RequestException:
         pass
-    return None
+    return {"today": [], "next_shift": None}
 
 
 def ping() -> bool:

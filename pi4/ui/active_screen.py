@@ -359,34 +359,14 @@ class ActiveScreen(QWidget):
 
         il.addSpacing(10)
 
-        # Ca làm việc hôm nay
-        self.shift_widget = QWidget()
-        self.shift_widget.setStyleSheet("""
-            background: rgba(88,166,255,0.08);
-            border-left: 2px solid rgba(88,166,255,0.5);
-            border-radius: 4px;
-        """)
-        shl = QHBoxLayout(self.shift_widget)
-        shl.setContentsMargins(10, 7, 10, 7)
-        shl.setSpacing(8)
-        shift_icon = QLabel("◷")
-        shift_icon.setFixedWidth(18)
-        shift_icon.setStyleSheet(
-            "color: #58a6ff; font-size: 15px; background: transparent; border: none;")
-        shl.addWidget(shift_icon)
-        self.shift_name_lbl = QLabel()
-        self.shift_name_lbl.setStyleSheet(
-            "color: rgba(255,255,255,0.8); font-size: 14px; "
-            "background: transparent; border: none;")
-        shl.addWidget(self.shift_name_lbl)
-        shl.addStretch()
-        self.shift_time_lbl = QLabel()
-        self.shift_time_lbl.setStyleSheet(
-            "color: rgba(255,255,255,0.45); font-size: 13px; "
-            "letter-spacing: 1px; background: transparent; border: none;")
-        shl.addWidget(self.shift_time_lbl)
-        il.addWidget(self.shift_widget)
-        self.shift_widget.hide()
+        # Ca làm việc — section động (hôm nay hoặc ca sắp tới)
+        self.shift_section = QWidget()
+        self.shift_section.setStyleSheet("background: transparent;")
+        self._shift_layout = QVBoxLayout(self.shift_section)
+        self._shift_layout.setContentsMargins(0, 0, 0, 0)
+        self._shift_layout.setSpacing(3)
+        il.addWidget(self.shift_section)
+        self.shift_section.hide()
 
         il.addSpacing(6)
         detail_row = QHBoxLayout()
@@ -556,6 +536,79 @@ class ActiveScreen(QWidget):
             self.btn_checkin.setEnabled(False)
             self.btn_checkout.setEnabled(False)
 
+    def _make_shift_row(self, name: str, time_range: str,
+                        date_str: str, color: str) -> QWidget:
+        row = QWidget()
+        row.setStyleSheet(f"""
+            background: rgba(88,166,255,0.08);
+            border-left: 2px solid {color};
+            border-radius: 4px;
+        """)
+        rl = QHBoxLayout(row)
+        rl.setContentsMargins(10, 6, 10, 6)
+        rl.setSpacing(8)
+
+        icon = QLabel("◷")
+        icon.setFixedWidth(18)
+        icon.setStyleSheet(
+            f"color: {color}; font-size: 15px; background: transparent; border: none;")
+        rl.addWidget(icon)
+
+        name_lbl = QLabel(name)
+        name_lbl.setStyleSheet(
+            "color: rgba(255,255,255,0.8); font-size: 14px; "
+            "background: transparent; border: none;")
+        rl.addWidget(name_lbl)
+        rl.addStretch()
+
+        right = (f"{date_str}  " if date_str else "") + time_range
+        time_lbl = QLabel(right)
+        time_lbl.setStyleSheet(
+            f"color: rgba(255,255,255,0.45); font-size: 13px; "
+            f"letter-spacing: 1px; background: transparent; border: none;")
+        rl.addWidget(time_lbl)
+        return row
+
+    def update_shifts(self, shifts_today: list, next_shift: dict | None):
+        """Cập nhật section ca làm việc — gọi mỗi khi show_person hoặc làm mới dữ liệu."""
+        # Xóa các row cũ
+        while self._shift_layout.count():
+            item = self._shift_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+        if shifts_today:
+            for shift in shifts_today:
+                ci = shift.get("check_in_time", "")
+                co = shift.get("check_out_time", "")
+                row = self._make_shift_row(
+                    shift.get("shift_name", ""),
+                    f"{ci} – {co}" if ci and co else "",
+                    "", "#58a6ff",
+                )
+                self._shift_layout.addWidget(row)
+            self.shift_section.show()
+
+        elif next_shift:
+            try:
+                from datetime import datetime as _dt
+                d = _dt.strptime(next_shift["date"], "%Y-%m-%d")
+                date_str = d.strftime("%d/%m")
+            except Exception:
+                date_str = next_shift.get("date", "")
+            ci = next_shift.get("check_in_time", "")
+            co = next_shift.get("check_out_time", "")
+            row = self._make_shift_row(
+                next_shift.get("shift_name", ""),
+                f"{ci} – {co}" if ci and co else "",
+                date_str, "#e3b341",
+            )
+            self._shift_layout.addWidget(row)
+            self.shift_section.show()
+
+        else:
+            self.shift_section.hide()
+
     def show_no_shift_error(self, message: str = "BẠN KHÔNG CÓ CA\nTẠI THỜI ĐIỂM NÀY"):
         """Hiện popup lỗi khi không có ca hoặc ngoài giờ ca."""
         if not self._current_person:
@@ -585,6 +638,7 @@ class ActiveScreen(QWidget):
         self.shift_widget.hide()
         self.code_label.setText("")
         self.conf_label.setText("")
+        self.update_shifts([], None)
         self.ci_time.setText("—")
         self.co_time.setText("—")
         self.btn_checkin.setEnabled(False)
@@ -604,15 +658,7 @@ class ActiveScreen(QWidget):
         dept = data.get("department") or ""
         self.dept_label.setText(dept.upper() if dept else "")
 
-        shift = data.get("shift")
-        if shift:
-            self.shift_name_lbl.setText(shift.get("shift_name", ""))
-            ci = shift.get("check_in_time", "")
-            co = shift.get("check_out_time", "")
-            self.shift_time_lbl.setText(f"{ci} – {co}" if ci and co else "")
-            self.shift_widget.show()
-        else:
-            self.shift_widget.hide()
+        self.update_shifts(data.get("shifts_today", []), data.get("next_shift"))
 
         code = data.get("code", "")
         self.code_label.setText(f"#{code}" if code else f"ID {data['user_id']}")

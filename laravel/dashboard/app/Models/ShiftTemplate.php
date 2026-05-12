@@ -7,7 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 class ShiftTemplate extends Model
 {
     protected $fillable = [
-        'name', 'check_in_time', 'check_out_time', 'late_tolerance', 'color', 'is_active',
+        'name', 'check_in_time', 'check_out_time',
+        'late_tolerance', 'checkin_before', 'checkin_after',
+        'color', 'is_active',
     ];
 
     protected $casts = [

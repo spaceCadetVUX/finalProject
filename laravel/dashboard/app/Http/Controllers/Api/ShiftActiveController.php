@@ -82,6 +82,8 @@ class ShiftActiveController extends Controller
             'check_in_time'     => substr($tpl->check_in_time, 0, 5),
             'check_out_time'    => substr($tpl->check_out_time, 0, 5),
             'late_tolerance'    => $tpl->late_tolerance,
+            'checkin_before'    => $tpl->checkin_before,
+            'checkin_after'     => $tpl->checkin_after,
         ];
     }
 }

@@ -25,12 +25,14 @@ class ShiftTemplateController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'name'           => 'required|string|max:100|unique:shift_templates',
-            'check_in_time'  => 'required|date_format:H:i',
-            'check_out_time' => 'required|date_format:H:i',
-            'late_tolerance' => 'required|integer|min:0|max:120',
-            'color'          => ['required', 'regex:/^#[0-9A-Fa-f]{6}$/'],
-            'is_active'      => 'boolean',
+            'name'            => 'required|string|max:100|unique:shift_templates',
+            'check_in_time'   => 'required|date_format:H:i',
+            'check_out_time'  => 'required|date_format:H:i',
+            'late_tolerance'  => 'required|integer|min:0|max:480',
+            'checkin_before'  => 'required|integer|min:0|max:480',
+            'checkin_after'   => 'required|integer|min:0|max:480',
+            'color'           => ['required', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'is_active'       => 'boolean',
         ]);
 
         $data['is_active'] = $request->boolean('is_active', true);
@@ -52,7 +54,9 @@ class ShiftTemplateController extends Controller
             'name'           => "required|string|max:100|unique:shift_templates,name,{$shift->id}",
             'check_in_time'  => 'required|date_format:H:i',
             'check_out_time' => 'required|date_format:H:i',
-            'late_tolerance' => 'required|integer|min:0|max:120',
+            'late_tolerance' => 'required|integer|min:0|max:480',
+            'checkin_before' => 'required|integer|min:0|max:480',
+            'checkin_after'  => 'required|integer|min:0|max:480',
             'color'          => ['required', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'is_active'      => 'boolean',
         ]);

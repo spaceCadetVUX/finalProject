@@ -325,11 +325,13 @@ class MainWindow(QMainWindow):
         active_shift = None
         for s in shifts_today:
             try:
-                ci_dt = datetime.strptime(f"{today_str} {s['check_in_time']}", "%Y-%m-%d %H:%M")
-                co_dt = datetime.strptime(f"{today_str} {s['check_out_time']}", "%Y-%m-%d %H:%M")
+                ci_dt  = datetime.strptime(f"{today_str} {s['check_in_time']}", "%Y-%m-%d %H:%M")
+                co_dt  = datetime.strptime(f"{today_str} {s['check_out_time']}", "%Y-%m-%d %H:%M")
+                before = int(s.get("checkin_before", 60))
+                after  = int(s.get("checkin_after",  60))
                 if co_dt <= ci_dt:          # ca qua đêm
                     co_dt += timedelta(days=1)
-                if ci_dt - timedelta(hours=2) <= now_dt <= co_dt + timedelta(hours=2):
+                if ci_dt - timedelta(minutes=before) <= now_dt <= ci_dt + timedelta(minutes=after):
                     active_shift = s
                     break
             except (KeyError, ValueError):

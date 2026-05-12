@@ -72,20 +72,49 @@
                 </div>
             </div>
 
-            {{-- Biên độ trễ --}}
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">
-                    Biên độ trễ (phút) <span class="text-red-500">*</span>
-                </label>
-                <input type="number" name="late_tolerance"
-                       value="{{ old('late_tolerance', $shift->late_tolerance) }}"
-                       min="0" max="120"
-                       class="w-32 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none
-                              @error('late_tolerance') border-red-400 @enderror">
-                <span class="text-xs text-gray-400 ml-2">Tối đa 120 phút</span>
-                @error('late_tolerance')
-                    <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
-                @enderror
+            {{-- Biên độ trễ + cửa sổ check-in --}}
+            <div class="grid grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Biên độ trễ (phút) <span class="text-red-500">*</span>
+                    </label>
+                    <input type="number" name="late_tolerance"
+                           value="{{ old('late_tolerance', $shift->late_tolerance) }}"
+                           min="0" max="480"
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none
+                                  @error('late_tolerance') border-red-400 @enderror">
+                    @error('late_tolerance')
+                        <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                    @enderror
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Vào sớm nhất (phút) <span class="text-red-500">*</span>
+                    </label>
+                    <input type="number" name="checkin_before"
+                           value="{{ old('checkin_before', $shift->checkin_before) }}"
+                           min="0" max="480"
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none
+                                  @error('checkin_before') border-red-400 @enderror">
+                    <p class="text-xs text-gray-400 mt-1">Trước giờ vào</p>
+                    @error('checkin_before')
+                        <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                    @enderror
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Vào trễ nhất (phút) <span class="text-red-500">*</span>
+                    </label>
+                    <input type="number" name="checkin_after"
+                           value="{{ old('checkin_after', $shift->checkin_after) }}"
+                           min="0" max="480"
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none
+                                  @error('checkin_after') border-red-400 @enderror">
+                    <p class="text-xs text-gray-400 mt-1">Sau giờ vào</p>
+                    @error('checkin_after')
+                        <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                    @enderror
+                </div>
             </div>
 
             {{-- Màu hiển thị --}}

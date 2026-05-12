@@ -1,7 +1,7 @@
 import queue
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import cv2
 from PyQt5.QtCore import QThread, QTimer, pyqtSignal
@@ -294,9 +294,24 @@ class MainWindow(QMainWindow):
             return
 
         # Từ chối nếu không có ca làm việc được phân hôm nay
-        if person.get("shift") is None:
-            self.active.show_no_shift_error()
+        shift = person.get("shift")
+        if shift is None:
+            self.active.show_no_shift_error("BẠN KHÔNG CÓ CA\nTẠI THỜI ĐIỂM NÀY")
             return
+
+        # Từ chối nếu ngoài cửa sổ giờ ca (2h trước check_in ~ 2h sau check_out)
+        try:
+            now_dt   = datetime.now()
+            today    = now_dt.strftime("%Y-%m-%d")
+            ci_dt    = datetime.strptime(f"{today} {shift['check_in_time']}",  "%Y-%m-%d %H:%M")
+            co_dt    = datetime.strptime(f"{today} {shift['check_out_time']}", "%Y-%m-%d %H:%M")
+            if not (ci_dt - timedelta(hours=2) <= now_dt <= co_dt + timedelta(hours=2)):
+                self.active.show_no_shift_error(
+                    f"NGOÀI GIỜ CA\n{shift['check_in_time']} – {shift['check_out_time']}"
+                )
+                return
+        except (KeyError, ValueError):
+            pass
 
         uid = person["user_id"]
         now = time.time()
@@ -306,7 +321,6 @@ class MainWindow(QMainWindow):
         self._cooldown[(uid, rtype)] = now
 
         recorded_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        shift = person.get("shift") or {}
         result = api_client.post_attendance(
             uid, rtype, person["confidence"],
             None, recorded_at,

@@ -556,13 +556,13 @@ class ActiveScreen(QWidget):
             self.btn_checkin.setEnabled(False)
             self.btn_checkout.setEnabled(False)
 
-    def show_no_shift_error(self):
-        """Hiện popup lỗi khi nhân viên không có ca làm việc hôm nay."""
+    def show_no_shift_error(self, message: str = "BẠN KHÔNG CÓ CA\nTẠI THỜI ĐIỂM NÀY"):
+        """Hiện popup lỗi khi không có ca hoặc ngoài giờ ca."""
         if not self._current_person:
             return
         self.popup.show_error(
             self._current_person,
-            "KHÔNG CÓ CA LÀM VIỆC HÔM NAY",
+            message,
             "#f85149",
         )
 

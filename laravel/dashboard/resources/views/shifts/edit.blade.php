@@ -6,7 +6,12 @@
 <div class="max-w-lg">
     <div class="bg-white rounded-xl shadow-sm p-6">
         <form method="POST" action="{{ route('shifts.update', $shift) }}" class="space-y-5"
-              x-data="{ color: '{{ old('color', $shift->color) }}' }">
+              x-data="{
+                  color:    '{{ old('color', $shift->color) }}',
+                  checkIn:  '{{ old('check_in_time',  substr($shift->check_in_time,  0, 5)) }}',
+                  checkOut: '{{ old('check_out_time', substr($shift->check_out_time, 0, 5)) }}',
+                  get overnight() { return this.checkIn && this.checkOut && this.checkOut <= this.checkIn }
+              }">
             @csrf @method('PUT')
 
             {{-- Cảnh báo nếu có lịch đang dùng --}}
@@ -39,8 +44,7 @@
                     <label class="block text-sm font-medium text-gray-700 mb-1">
                         Giờ vào <span class="text-red-500">*</span>
                     </label>
-                    <input type="time" name="check_in_time"
-                           value="{{ old('check_in_time', substr($shift->check_in_time, 0, 5)) }}"
+                    <input type="time" name="check_in_time" x-model="checkIn"
                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none
                                   @error('check_in_time') border-red-400 @enderror">
                     @error('check_in_time')
@@ -51,13 +55,20 @@
                     <label class="block text-sm font-medium text-gray-700 mb-1">
                         Giờ ra <span class="text-red-500">*</span>
                     </label>
-                    <input type="time" name="check_out_time"
-                           value="{{ old('check_out_time', substr($shift->check_out_time, 0, 5)) }}"
+                    <input type="time" name="check_out_time" x-model="checkOut"
                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none
                                   @error('check_out_time') border-red-400 @enderror">
                     @error('check_out_time')
                         <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                     @enderror
+                </div>
+
+                {{-- Badge ca qua đêm --}}
+                <div class="col-span-2" x-show="overnight" x-cloak>
+                    <div class="flex items-center gap-2 px-3 py-2 bg-indigo-50 border border-indigo-200 rounded-lg text-xs text-indigo-700">
+                        <span>🌙</span>
+                        <span>Ca qua đêm — giờ ra tính sang ngày hôm sau</span>
+                    </div>
                 </div>
             </div>
 

@@ -67,6 +67,8 @@ def determine_type(user_id: int, shift: dict | None,
 
     check_in_dt  = datetime.strptime(f"{today} {shift['check_in_time']}",  "%Y-%m-%d %H:%M")
     check_out_dt = datetime.strptime(f"{today} {shift['check_out_time']}", "%Y-%m-%d %H:%M")
+    if check_out_dt <= check_in_dt:     # ca qua đêm
+        check_out_dt += timedelta(days=1)
 
     # Cửa sổ hợp lệ: 2h trước giờ vào ~ 2h sau giờ ra
     window_start = check_in_dt  - timedelta(hours=2)

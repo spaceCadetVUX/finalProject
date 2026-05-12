@@ -324,6 +324,8 @@ class MainWindow(QMainWindow):
             try:
                 ci_dt = datetime.strptime(f"{today_str} {s['check_in_time']}", "%Y-%m-%d %H:%M")
                 co_dt = datetime.strptime(f"{today_str} {s['check_out_time']}", "%Y-%m-%d %H:%M")
+                if co_dt <= ci_dt:          # ca qua đêm
+                    co_dt += timedelta(days=1)
                 if ci_dt - timedelta(hours=2) <= now_dt <= co_dt + timedelta(hours=2):
                     active_shift = s
                     break

@@ -27,7 +27,7 @@ class ShiftTemplateController extends Controller
         $data = $request->validate([
             'name'           => 'required|string|max:100|unique:shift_templates',
             'check_in_time'  => 'required|date_format:H:i',
-            'check_out_time' => 'required|date_format:H:i|after:check_in_time',
+            'check_out_time' => 'required|date_format:H:i',
             'late_tolerance' => 'required|integer|min:0|max:120',
             'color'          => ['required', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'is_active'      => 'boolean',
@@ -51,7 +51,7 @@ class ShiftTemplateController extends Controller
         $data = $request->validate([
             'name'           => "required|string|max:100|unique:shift_templates,name,{$shift->id}",
             'check_in_time'  => 'required|date_format:H:i',
-            'check_out_time' => 'required|date_format:H:i|after:check_in_time',
+            'check_out_time' => 'required|date_format:H:i',
             'late_tolerance' => 'required|integer|min:0|max:120',
             'color'          => ['required', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'is_active'      => 'boolean',

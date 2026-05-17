@@ -24,12 +24,9 @@ class DepartmentController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'name'           => 'required|string|max:255|unique:departments',
-            'description'    => 'nullable|string|max:500',
-            'manager_id'     => 'nullable|exists:users,id',
-            'check_in_time'  => 'required|date_format:H:i',
-            'check_out_time' => 'required|date_format:H:i|after:check_in_time',
-            'late_tolerance' => 'required|integer|min:0|max:60',
+            'name'        => 'required|string|max:255|unique:departments',
+            'description' => 'nullable|string|max:500',
+            'manager_id'  => 'nullable|exists:users,id',
         ]);
 
         Department::create($data);
@@ -71,12 +68,9 @@ class DepartmentController extends Controller
     public function update(Request $request, Department $department)
     {
         $data = $request->validate([
-            'name'           => "required|string|max:255|unique:departments,name,{$department->id}",
-            'description'    => 'nullable|string|max:500',
-            'manager_id'     => 'nullable|exists:users,id',
-            'check_in_time'  => 'required|date_format:H:i',
-            'check_out_time' => 'required|date_format:H:i|after:check_in_time',
-            'late_tolerance' => 'required|integer|min:0|max:60',
+            'name'        => "required|string|max:255|unique:departments,name,{$department->id}",
+            'description' => 'nullable|string|max:500',
+            'manager_id'  => 'nullable|exists:users,id',
         ]);
 
         $department->update($data);

@@ -16,8 +16,6 @@
             <tr>
                 <th class="text-left px-4 py-3 text-gray-600 font-medium">Tên phòng ban</th>
                 <th class="text-left px-4 py-3 text-gray-600 font-medium">Quản lý</th>
-                <th class="text-left px-4 py-3 text-gray-600 font-medium">Giờ làm việc</th>
-                <th class="text-left px-4 py-3 text-gray-600 font-medium">Biên độ trễ</th>
                 <th class="text-left px-4 py-3 text-gray-600 font-medium">Nhân viên</th>
                 <th class="px-4 py-3"></th>
             </tr>
@@ -32,10 +30,6 @@
                     @endif
                 </td>
                 <td class="px-4 py-3 text-gray-600">{{ $dept->manager?->name ?? '—' }}</td>
-                <td class="px-4 py-3 text-gray-600">
-                    {{ substr($dept->check_in_time, 0, 5) }} — {{ substr($dept->check_out_time, 0, 5) }}
-                </td>
-                <td class="px-4 py-3 text-gray-600">{{ $dept->late_tolerance }} phút</td>
                 <td class="px-4 py-3">
                     <span class="font-semibold text-gray-800">{{ $dept->employees_count }}</span>
                     <span class="text-gray-400 text-xs">người</span>
@@ -52,7 +46,7 @@
             </tr>
             @empty
             <tr>
-                <td colspan="6" class="px-4 py-8 text-center text-gray-400">Chưa có phòng ban nào</td>
+                <td colspan="4" class="px-4 py-8 text-center text-gray-400">Chưa có phòng ban nào</td>
             </tr>
             @endforelse
         </tbody>

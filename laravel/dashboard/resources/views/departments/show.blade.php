@@ -31,22 +31,14 @@
 
 {{-- Department info card --}}
 <div class="bg-white rounded-xl shadow-sm p-5 mb-6">
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div class="grid grid-cols-2 md:grid-cols-2 gap-4">
         <div>
             <div class="text-xs text-gray-400 mb-1">Quản lý</div>
             <div class="text-sm font-medium text-gray-800">{{ $department->manager?->name ?? '—' }}</div>
         </div>
         <div>
-            <div class="text-xs text-gray-400 mb-1">Giờ vào</div>
-            <div class="text-sm font-medium text-gray-800">{{ substr($department->check_in_time, 0, 5) }}</div>
-        </div>
-        <div>
-            <div class="text-xs text-gray-400 mb-1">Giờ ra</div>
-            <div class="text-sm font-medium text-gray-800">{{ substr($department->check_out_time, 0, 5) }}</div>
-        </div>
-        <div>
-            <div class="text-xs text-gray-400 mb-1">Biên độ trễ</div>
-            <div class="text-sm font-medium text-gray-800">{{ $department->late_tolerance }} phút</div>
+            <div class="text-xs text-gray-400 mb-1">Số nhân viên</div>
+            <div class="text-sm font-medium text-gray-800">{{ $department->employees->count() }} người</div>
         </div>
     </div>
     @if($department->description)

@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>1.7 Database Diagram – Hệ thống Điểm danh</title>
+<style>
+  body { font-family: 'Segoe UI', sans-serif; background: #f1f5f9; margin: 0; padding: 20px; }
+  h1   { text-align:center; color:#1e293b; font-size:1.4rem; margin-bottom:4px; }
+  p.sub{ text-align:center; color:#64748b; font-size:.85rem; margin-bottom:16px; }
+  .wrap{ background:white; border-radius:12px; padding:20px; box-shadow:0 2px 12px rgba(0,0,0,.08); overflow-x:auto; }
+  svg text{ font-family:'Segoe UI',Consolas,monospace; }
+</style>
+</head>
+<body>
+<h1>1.7. Biểu đồ Cơ sở Dữ liệu (Database Diagram)</h1>
+<p class="sub">MySQL Schema – Laravel Migrations – 7 bảng nghiệp vụ chính</p>
+<div class="wrap">
+<svg viewBox="0 0 1240 730" width="100%" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <marker id="fk-arr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+    <path d="M1,1 L7,4 L1,7" fill="none" stroke="#64748b" stroke-width="1.4"/>
+  </marker>
+  <marker id="fk-arr-dashed" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+    <path d="M1,1 L7,4 L1,7" fill="none" stroke="#94a3b8" stroke-width="1.4"/>
+  </marker>
+  <!-- crow's foot: many end -->
+  <marker id="many" markerWidth="10" markerHeight="10" refX="1" refY="5" orient="auto">
+    <path d="M9,1 L1,5 M9,9 L1,5 M9,5 L1,5" fill="none" stroke="#64748b" stroke-width="1.3"/>
+  </marker>
+  <!-- circle: one end -->
+  <marker id="one" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+    <circle cx="4" cy="4" r="2.5" fill="white" stroke="#64748b" stroke-width="1.3"/>
+  </marker>
+</defs>
+
+<!-- ═══════════════════════════════════
+  LEGEND
+══════════════════════════════════ -->
+<rect x="1000" y="560" width="220" height="110" rx="8" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1"/>
+<text x="1110" y="580" text-anchor="middle" font-size="11" font-weight="bold" fill="#334155">Ký hiệu</text>
+<line x1="1020" y1="597" x2="1070" y2="597" stroke="#64748b" stroke-width="1.5" marker-start="url(#many)" marker-end="url(#fk-arr)"/>
+<text x="1078" y="601" font-size="10" fill="#475569">FK  →  PK  (N:1)</text>
+<line x1="1020" y1="617" x2="1070" y2="617" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#fk-arr-dashed)"/>
+<text x="1078" y="621" font-size="10" fill="#475569">Polymorphic / optional</text>
+<!-- PK row sample -->
+<rect x="1020" y="629" width="60" height="15" fill="#fef9c3"/>
+<text x="1025" y="641" font-size="9" font-weight="bold" fill="#713f12">PK  id</text>
+<text x="1086" y="641" font-size="10" fill="#475569">Primary Key</text>
+<!-- FK row sample -->
+<rect x="1020" y="647" width="60" height="15" fill="#eff6ff"/>
+<text x="1025" y="659" font-size="9" fill="#1e40af">FK  col</text>
+<text x="1086" y="659" font-size="10" fill="#475569">Foreign Key</text>
+
+<!-- ═══════════════════════════════════════════════════
+  TABLE: departments  x=20 y=20 w=250
+══════════════════════════════════════════════════ -->
+<g id="tbl-departments">
+  <!-- header -->
+  <rect x="20" y="20" width="250" height="34" rx="5" fill="#7c3aed" stroke="#5b21b6" stroke-width="1.5"/>
+  <text x="145" y="42" text-anchor="middle" font-size="13" font-weight="bold" fill="white">departments</text>
+  <!-- rows: each row h=20 -->
+  <!-- id -->
+  <rect x="20" y="54" width="250" height="20" fill="#fef9c3" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="28" y="68" font-size="10" font-weight="bold" fill="#713f12">PK  id</text>
+  <text x="268" y="68" font-size="10" fill="#78350f" text-anchor="end">BIGINT UNSIGNED</text>
+  <!-- name -->
+  <rect x="20" y="74" width="250" height="20" fill="#fafafa" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="28" y="88" font-size="10" fill="#374151">    name</text>
+  <text x="268" y="88" font-size="10" fill="#6b7280" text-anchor="end">VARCHAR(255)</text>
+  <!-- description -->
+  <rect x="20" y="94" width="250" height="20" fill="#f3f4f6" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="28" y="108" font-size="10" fill="#374151">    description</text>
+  <text x="268" y="108" font-size="10" fill="#6b7280" text-anchor="end">VARCHAR NULL</text>
+  <!-- manager_id FK -->
+  <rect x="20" y="114" width="250" height="20" fill="#eff6ff" stroke="#bfdbfe" stroke-width=".5"/>
+  <text x="28" y="128" font-size="10" fill="#1d4ed8">FK  manager_id</text>
+  <text x="268" y="128" font-size="10" fill="#1d4ed8" text-anchor="end">BIGINT NULL</text>
+  <!-- check_in_time -->
+  <rect x="20" y="134" width="250" height="20" fill="#fafafa" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="28" y="148" font-size="10" fill="#374151">    check_in_time</text>
+  <text x="268" y="148" font-size="10" fill="#6b7280" text-anchor="end">TIME (08:00)</text>
+  <!-- check_out_time -->
+  <rect x="20" y="154" width="250" height="20" fill="#f3f4f6" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="28" y="168" font-size="10" fill="#374151">    check_out_time</text>
+  <text x="268" y="168" font-size="10" fill="#6b7280" text-anchor="end">TIME (17:00)</text>
+  <!-- late_tolerance -->
+  <rect x="20" y="174" width="250" height="20" fill="#fafafa" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="28" y="188" font-size="10" fill="#374151">    late_tolerance</text>
+  <text x="268" y="188" font-size="10" fill="#6b7280" text-anchor="end">TINYINT (15 phút)</text>
+  <!-- timestamps -->
+  <rect x="20" y="194" width="250" height="20" fill="#f3f4f6" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="28" y="208" font-size="10" fill="#9ca3af">    created_at / updated_at</text>
+  <text x="268" y="208" font-size="10" fill="#9ca3af" text-anchor="end">TIMESTAMP</text>
+  <!-- bottom border -->
+  <rect x="20" y="214" width="250" height="0" fill="none" stroke="#7c3aed" stroke-width="1.5"/>
+  <rect x="20" y="20" width="250" height="194" rx="0" fill="none" stroke="#7c3aed" stroke-width="1.5"/>
+</g>
+
+<!-- ═══════════════════════════════════════════════════
+  TABLE: users  x=330 y=20 w=265
+══════════════════════════════════════════════════ -->
+<g id="tbl-users">
+  <rect x="330" y="20" width="265" height="34" rx="5" fill="#1d4ed8" stroke="#1e3a8a" stroke-width="1.5"/>
+  <text x="462" y="42" text-anchor="middle" font-size="13" font-weight="bold" fill="white">users</text>
+  <!-- id -->
+  <rect x="330" y="54" width="265" height="20" fill="#fef9c3" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="338" y="68" font-size="10" font-weight="bold" fill="#713f12">PK  id</text>
+  <text x="593" y="68" font-size="10" fill="#78350f" text-anchor="end">BIGINT UNSIGNED</text>
+  <!-- name -->
+  <rect x="330" y="74" width="265" height="20" fill="#fafafa" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="338" y="88" font-size="10" fill="#374151">    name</text>
+  <text x="593" y="88" font-size="10" fill="#6b7280" text-anchor="end">VARCHAR(255)</text>
+  <!-- email -->
+  <rect x="330" y="94" width="265" height="20" fill="#f3f4f6" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="338" y="108" font-size="10" fill="#374151">    email</text>
+  <text x="593" y="108" font-size="10" fill="#6b7280" text-anchor="end">VARCHAR UNIQUE</text>
+  <!-- code -->
+  <rect x="330" y="114" width="265" height="20" fill="#fafafa" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="338" y="128" font-size="10" fill="#374151">    code</text>
+  <text x="593" y="128" font-size="10" fill="#6b7280" text-anchor="end">VARCHAR UNIQUE</text>
+  <!-- password -->
+  <rect x="330" y="134" width="265" height="20" fill="#f3f4f6" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="338" y="148" font-size="10" fill="#374151">    password</text>
+  <text x="593" y="148" font-size="10" fill="#6b7280" text-anchor="end">VARCHAR (bcrypt)</text>
+  <!-- role -->
+  <rect x="330" y="154" width="265" height="20" fill="#fafafa" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="338" y="168" font-size="10" fill="#374151">    role</text>
+  <text x="593" y="168" font-size="10" fill="#6b7280" text-anchor="end">ENUM(super_admin|admin|manager|employee)</text>
+  <!-- department_id FK -->
+  <rect x="330" y="174" width="265" height="20" fill="#eff6ff" stroke="#bfdbfe" stroke-width=".5"/>
+  <text x="338" y="188" font-size="10" fill="#1d4ed8">FK  department_id</text>
+  <text x="593" y="188" font-size="10" fill="#1d4ed8" text-anchor="end">BIGINT NULL</text>
+  <!-- avatar -->
+  <rect x="330" y="194" width="265" height="20" fill="#f3f4f6" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="338" y="208" font-size="10" fill="#374151">    avatar</text>
+  <text x="593" y="208" font-size="10" fill="#6b7280" text-anchor="end">VARCHAR NULL</text>
+  <!-- remember_token -->
+  <rect x="330" y="214" width="265" height="20" fill="#fafafa" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="338" y="228" font-size="10" fill="#9ca3af">    remember_token</text>
+  <text x="593" y="228" font-size="10" fill="#9ca3af" text-anchor="end">VARCHAR(100) NULL</text>
+  <!-- timestamps -->
+  <rect x="330" y="234" width="265" height="20" fill="#f3f4f6" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="338" y="248" font-size="10" fill="#9ca3af">    created_at / updated_at</text>
+  <text x="593" y="248" font-size="10" fill="#9ca3af" text-anchor="end">TIMESTAMP</text>
+  <!-- deleted_at softdelete -->
+  <rect x="330" y="254" width="265" height="20" fill="#fff7ed" stroke="#fed7aa" stroke-width=".5"/>
+  <text x="338" y="268" font-size="10" fill="#c2410c">    deleted_at</text>
+  <text x="593" y="268" font-size="10" fill="#c2410c" text-anchor="end">TIMESTAMP NULL «SoftDelete»</text>
+  <!-- border -->
+  <rect x="330" y="20" width="265" height="254" rx="0" fill="none" stroke="#1d4ed8" stroke-width="1.5"/>
+</g>
+
+<!-- ═══════════════════════════════════════════════════
+  TABLE: devices  x=645 y=20 w=240
+══════════════════════════════════════════════════ -->
+<g id="tbl-devices">
+  <rect x="645" y="20" width="240" height="34" rx="5" fill="#dc2626" stroke="#b91c1c" stroke-width="1.5"/>
+  <text x="765" y="42" text-anchor="middle" font-size="13" font-weight="bold" fill="white">devices</text>
+  <!-- id -->
+  <rect x="645" y="54" width="240" height="20" fill="#fef9c3" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="653" y="68" font-size="10" font-weight="bold" fill="#713f12">PK  id</text>
+  <text x="883" y="68" font-size="10" fill="#78350f" text-anchor="end">BIGINT UNSIGNED</text>
+  <!-- name -->
+  <rect x="645" y="74" width="240" height="20" fill="#fafafa" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="653" y="88" font-size="10" fill="#374151">    name</text>
+  <text x="883" y="88" font-size="10" fill="#6b7280" text-anchor="end">VARCHAR(255)</text>
+  <!-- location -->
+  <rect x="645" y="94" width="240" height="20" fill="#f3f4f6" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="653" y="108" font-size="10" fill="#374151">    location</text>
+  <text x="883" y="108" font-size="10" fill="#6b7280" text-anchor="end">VARCHAR NULL</text>
+  <!-- token -->
+  <rect x="645" y="114" width="240" height="20" fill="#fafafa" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="653" y="128" font-size="10" fill="#374151">    token</text>
+  <text x="883" y="128" font-size="10" fill="#6b7280" text-anchor="end">VARCHAR(64) UNIQUE</text>
+  <!-- last_ping -->
+  <rect x="645" y="134" width="240" height="20" fill="#f3f4f6" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="653" y="148" font-size="10" fill="#374151">    last_ping</text>
+  <text x="883" y="148" font-size="10" fill="#6b7280" text-anchor="end">TIMESTAMP NULL</text>
+  <!-- status -->
+  <rect x="645" y="154" width="240" height="20" fill="#fafafa" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="653" y="168" font-size="10" fill="#374151">    status</text>
+  <text x="883" y="168" font-size="10" fill="#6b7280" text-anchor="end">ENUM(online|offline)</text>
+  <!-- timestamps -->
+  <rect x="645" y="174" width="240" height="20" fill="#f3f4f6" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="653" y="188" font-size="10" fill="#9ca3af">    created_at / updated_at</text>
+  <text x="883" y="188" font-size="10" fill="#9ca3af" text-anchor="end">TIMESTAMP</text>
+  <!-- border -->
+  <rect x="645" y="20" width="240" height="174" rx="0" fill="none" stroke="#dc2626" stroke-width="1.5"/>
+</g>
+
+<!-- ═══════════════════════════════════════════════════
+  TABLE: shift_templates  x=945 y=20 w=270
+══════════════════════════════════════════════════ -->
+<g id="tbl-shift-templates">
+  <rect x="945" y="20" width="270" height="34" rx="5" fill="#d97706" stroke="#b45309" stroke-width="1.5"/>
+  <text x="1080" y="42" text-anchor="middle" font-size="13" font-weight="bold" fill="white">shift_templates</text>
+  <!-- id -->
+  <rect x="945" y="54" width="270" height="20" fill="#fef9c3" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="953" y="68" font-size="10" font-weight="bold" fill="#713f12">PK  id</text>
+  <text x="1213" y="68" font-size="10" fill="#78350f" text-anchor="end">BIGINT UNSIGNED</text>
+  <!-- name -->
+  <rect x="945" y="74" width="270" height="20" fill="#fafafa" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="953" y="88" font-size="10" fill="#374151">    name</text>
+  <text x="1213" y="88" font-size="10" fill="#6b7280" text-anchor="end">VARCHAR(255)</text>
+  <!-- check_in_time -->
+  <rect x="945" y="94" width="270" height="20" fill="#f3f4f6" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="953" y="108" font-size="10" fill="#374151">    check_in_time</text>
+  <text x="1213" y="108" font-size="10" fill="#6b7280" text-anchor="end">TIME</text>
+  <!-- check_out_time -->
+  <rect x="945" y="114" width="270" height="20" fill="#fafafa" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="953" y="128" font-size="10" fill="#374151">    check_out_time</text>
+  <text x="1213" y="128" font-size="10" fill="#6b7280" text-anchor="end">TIME</text>
+  <!-- late_tolerance -->
+  <rect x="945" y="134" width="270" height="20" fill="#f3f4f6" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="953" y="148" font-size="10" fill="#374151">    late_tolerance</text>
+  <text x="1213" y="148" font-size="10" fill="#6b7280" text-anchor="end">TINYINT (phút)</text>
+  <!-- checkin_before -->
+  <rect x="945" y="154" width="270" height="20" fill="#fafafa" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="953" y="168" font-size="10" fill="#374151">    checkin_before</text>
+  <text x="1213" y="168" font-size="10" fill="#6b7280" text-anchor="end">SMALLINT (phút, mặc định 60)</text>
+  <!-- checkin_after -->
+  <rect x="945" y="174" width="270" height="20" fill="#f3f4f6" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="953" y="188" font-size="10" fill="#374151">    checkin_after</text>
+  <text x="1213" y="188" font-size="10" fill="#6b7280" text-anchor="end">SMALLINT (phút, mặc định 60)</text>
+  <!-- color -->
+  <rect x="945" y="194" width="270" height="20" fill="#fafafa" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="953" y="208" font-size="10" fill="#374151">    color</text>
+  <text x="1213" y="208" font-size="10" fill="#6b7280" text-anchor="end">VARCHAR(7) (#hex)</text>
+  <!-- is_active -->
+  <rect x="945" y="214" width="270" height="20" fill="#f3f4f6" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="953" y="228" font-size="10" fill="#374151">    is_active</text>
+  <text x="1213" y="228" font-size="10" fill="#6b7280" text-anchor="end">BOOLEAN (default true)</text>
+  <!-- timestamps -->
+  <rect x="945" y="234" width="270" height="20" fill="#fafafa" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="953" y="248" font-size="10" fill="#9ca3af">    created_at / updated_at</text>
+  <text x="1213" y="248" font-size="10" fill="#9ca3af" text-anchor="end">TIMESTAMP</text>
+  <!-- border -->
+  <rect x="945" y="20" width="270" height="234" rx="0" fill="none" stroke="#d97706" stroke-width="1.5"/>
+</g>
+
+<!-- ═══════════════════════════════════════════════════
+  TABLE: face_encodings  x=20 y=370 w=250
+══════════════════════════════════════════════════ -->
+<g id="tbl-face">
+  <rect x="20" y="370" width="250" height="34" rx="5" fill="#be185d" stroke="#9d174d" stroke-width="1.5"/>
+  <text x="145" y="392" text-anchor="middle" font-size="13" font-weight="bold" fill="white">face_encodings</text>
+  <!-- id -->
+  <rect x="20" y="404" width="250" height="20" fill="#fef9c3" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="28" y="418" font-size="10" font-weight="bold" fill="#713f12">PK  id</text>
+  <text x="268" y="418" font-size="10" fill="#78350f" text-anchor="end">BIGINT UNSIGNED</text>
+  <!-- user_id FK -->
+  <rect x="20" y="424" width="250" height="20" fill="#eff6ff" stroke="#bfdbfe" stroke-width=".5"/>
+  <text x="28" y="438" font-size="10" fill="#1d4ed8">FK  user_id</text>
+  <text x="268" y="438" font-size="10" fill="#1d4ed8" text-anchor="end">BIGINT (CASCADE)</text>
+  <!-- encoding -->
+  <rect x="20" y="444" width="250" height="20" fill="#fafafa" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="28" y="458" font-size="10" fill="#374151">    encoding</text>
+  <text x="268" y="458" font-size="10" fill="#6b7280" text-anchor="end">JSON [128 float]</text>
+  <!-- image_path -->
+  <rect x="20" y="464" width="250" height="20" fill="#f3f4f6" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="28" y="478" font-size="10" fill="#374151">    image_path</text>
+  <text x="268" y="478" font-size="10" fill="#6b7280" text-anchor="end">VARCHAR NULL</text>
+  <!-- created_at only (no updated_at) -->
+  <rect x="20" y="484" width="250" height="20" fill="#fafafa" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="28" y="498" font-size="10" fill="#9ca3af">    created_at</text>
+  <text x="268" y="498" font-size="10" fill="#9ca3af" text-anchor="end">TIMESTAMP (immutable)</text>
+  <!-- border -->
+  <rect x="20" y="370" width="250" height="134" rx="0" fill="none" stroke="#be185d" stroke-width="1.5"/>
+</g>
+
+<!-- ═══════════════════════════════════════════════════
+  TABLE: shift_schedules  x=645 y=310 w=275
+══════════════════════════════════════════════════ -->
+<g id="tbl-shift-sched">
+  <rect x="645" y="310" width="275" height="34" rx="5" fill="#0891b2" stroke="#0e7490" stroke-width="1.5"/>
+  <text x="782" y="332" text-anchor="middle" font-size="13" font-weight="bold" fill="white">shift_schedules</text>
+  <!-- id -->
+  <rect x="645" y="344" width="275" height="20" fill="#fef9c3" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="653" y="358" font-size="10" font-weight="bold" fill="#713f12">PK  id</text>
+  <text x="918" y="358" font-size="10" fill="#78350f" text-anchor="end">BIGINT UNSIGNED</text>
+  <!-- shift_template_id FK -->
+  <rect x="645" y="364" width="275" height="20" fill="#eff6ff" stroke="#bfdbfe" stroke-width=".5"/>
+  <text x="653" y="378" font-size="10" fill="#1d4ed8">FK  shift_template_id</text>
+  <text x="918" y="378" font-size="10" fill="#1d4ed8" text-anchor="end">BIGINT (CASCADE)</text>
+  <!-- assignee_type -->
+  <rect x="645" y="384" width="275" height="20" fill="#fafafa" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="653" y="398" font-size="10" fill="#374151">    assignee_type</text>
+  <text x="918" y="398" font-size="10" fill="#6b7280" text-anchor="end">ENUM(department|employee)</text>
+  <!-- assignee_id poly FK -->
+  <rect x="645" y="404" width="275" height="20" fill="#fdf4ff" stroke="#e9d5ff" stroke-width=".5"/>
+  <text x="653" y="418" font-size="10" fill="#7e22ce">Poly  assignee_id</text>
+  <text x="918" y="418" font-size="10" fill="#7e22ce" text-anchor="end">BIGINT (polymorphic)</text>
+  <!-- days_of_week -->
+  <rect x="645" y="424" width="275" height="20" fill="#fafafa" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="653" y="438" font-size="10" fill="#374151">    days_of_week</text>
+  <text x="918" y="438" font-size="10" fill="#6b7280" text-anchor="end">JSON [1..7 ISO]</text>
+  <!-- start_date -->
+  <rect x="645" y="444" width="275" height="20" fill="#f3f4f6" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="653" y="458" font-size="10" fill="#374151">    start_date</text>
+  <text x="918" y="458" font-size="10" fill="#6b7280" text-anchor="end">DATE</text>
+  <!-- end_date -->
+  <rect x="645" y="464" width="275" height="20" fill="#fafafa" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="653" y="478" font-size="10" fill="#374151">    end_date</text>
+  <text x="918" y="478" font-size="10" fill="#6b7280" text-anchor="end">DATE NULL (vô thời hạn)</text>
+  <!-- is_active -->
+  <rect x="645" y="484" width="275" height="20" fill="#f3f4f6" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="653" y="498" font-size="10" fill="#374151">    is_active</text>
+  <text x="918" y="498" font-size="10" fill="#6b7280" text-anchor="end">BOOLEAN</text>
+  <!-- note -->
+  <rect x="645" y="504" width="275" height="20" fill="#fafafa" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="653" y="518" font-size="10" fill="#374151">    note</text>
+  <text x="918" y="518" font-size="10" fill="#6b7280" text-anchor="end">VARCHAR NULL</text>
+  <!-- created_by FK -->
+  <rect x="645" y="524" width="275" height="20" fill="#eff6ff" stroke="#bfdbfe" stroke-width=".5"/>
+  <text x="653" y="538" font-size="10" fill="#1d4ed8">FK  created_by</text>
+  <text x="918" y="538" font-size="10" fill="#1d4ed8" text-anchor="end">BIGINT NULL → users</text>
+  <!-- timestamps -->
+  <rect x="645" y="544" width="275" height="20" fill="#f3f4f6" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="653" y="558" font-size="10" fill="#9ca3af">    created_at / updated_at</text>
+  <text x="918" y="558" font-size="10" fill="#9ca3af" text-anchor="end">TIMESTAMP</text>
+  <!-- index note -->
+  <rect x="645" y="564" width="275" height="18" fill="#ecfdf5" stroke="#a7f3d0" stroke-width=".5"/>
+  <text x="653" y="576" font-size="9" fill="#065f46">IDX (assignee_type, assignee_id)  |  no UQ</text>
+  <!-- border -->
+  <rect x="645" y="310" width="275" height="272" rx="0" fill="none" stroke="#0891b2" stroke-width="1.5"/>
+</g>
+
+<!-- ═══════════════════════════════════════════════════
+  TABLE: attendances  x=330 y=370 w=285
+══════════════════════════════════════════════════ -->
+<g id="tbl-att">
+  <rect x="330" y="370" width="285" height="34" rx="5" fill="#0f766e" stroke="#0d5e57" stroke-width="1.5"/>
+  <text x="472" y="392" text-anchor="middle" font-size="13" font-weight="bold" fill="white">attendances</text>
+  <!-- id -->
+  <rect x="330" y="404" width="285" height="20" fill="#fef9c3" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="338" y="418" font-size="10" font-weight="bold" fill="#713f12">PK  id</text>
+  <text x="613" y="418" font-size="10" fill="#78350f" text-anchor="end">BIGINT UNSIGNED</text>
+  <!-- user_id FK -->
+  <rect x="330" y="424" width="285" height="20" fill="#eff6ff" stroke="#bfdbfe" stroke-width=".5"/>
+  <text x="338" y="438" font-size="10" fill="#1d4ed8">FK  user_id</text>
+  <text x="613" y="438" font-size="10" fill="#1d4ed8" text-anchor="end">BIGINT (CASCADE)</text>
+  <!-- device_id FK -->
+  <rect x="330" y="444" width="285" height="20" fill="#eff6ff" stroke="#bfdbfe" stroke-width=".5"/>
+  <text x="338" y="458" font-size="10" fill="#1d4ed8">FK  device_id</text>
+  <text x="613" y="458" font-size="10" fill="#1d4ed8" text-anchor="end">BIGINT NULL</text>
+  <!-- shift_schedule_id FK -->
+  <rect x="330" y="464" width="285" height="20" fill="#eff6ff" stroke="#bfdbfe" stroke-width=".5"/>
+  <text x="338" y="478" font-size="10" fill="#1d4ed8">FK  shift_schedule_id</text>
+  <text x="613" y="478" font-size="10" fill="#1d4ed8" text-anchor="end">BIGINT NULL</text>
+  <!-- work_date -->
+  <rect x="330" y="484" width="285" height="20" fill="#fafafa" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="338" y="498" font-size="10" fill="#374151">    work_date</text>
+  <text x="613" y="498" font-size="10" fill="#6b7280" text-anchor="end">DATE</text>
+  <!-- check_in_at -->
+  <rect x="330" y="504" width="285" height="20" fill="#f3f4f6" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="338" y="518" font-size="10" fill="#374151">    check_in_at</text>
+  <text x="613" y="518" font-size="10" fill="#6b7280" text-anchor="end">TIMESTAMP NULL</text>
+  <!-- check_in_confidence -->
+  <rect x="330" y="524" width="285" height="20" fill="#fafafa" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="338" y="538" font-size="10" fill="#374151">    check_in_confidence</text>
+  <text x="613" y="538" font-size="10" fill="#6b7280" text-anchor="end">FLOAT NULL (0–1)</text>
+  <!-- check_in_image -->
+  <rect x="330" y="544" width="285" height="20" fill="#f3f4f6" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="338" y="558" font-size="10" fill="#374151">    check_in_image</text>
+  <text x="613" y="558" font-size="10" fill="#6b7280" text-anchor="end">VARCHAR NULL</text>
+  <!-- check_out_at -->
+  <rect x="330" y="564" width="285" height="20" fill="#fafafa" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="338" y="578" font-size="10" fill="#374151">    check_out_at</text>
+  <text x="613" y="578" font-size="10" fill="#6b7280" text-anchor="end">TIMESTAMP NULL</text>
+  <!-- check_out_confidence -->
+  <rect x="330" y="584" width="285" height="20" fill="#f3f4f6" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="338" y="598" font-size="10" fill="#374151">    check_out_confidence</text>
+  <text x="613" y="598" font-size="10" fill="#6b7280" text-anchor="end">FLOAT NULL</text>
+  <!-- check_out_image -->
+  <rect x="330" y="604" width="285" height="20" fill="#fafafa" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="338" y="618" font-size="10" fill="#374151">    check_out_image</text>
+  <text x="613" y="618" font-size="10" fill="#6b7280" text-anchor="end">VARCHAR NULL</text>
+  <!-- status -->
+  <rect x="330" y="624" width="285" height="20" fill="#f3f4f6" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="338" y="638" font-size="10" fill="#374151">    status</text>
+  <text x="613" y="638" font-size="10" fill="#6b7280" text-anchor="end">ENUM(present|late|early_leave|absent|leave)</text>
+  <!-- note -->
+  <rect x="330" y="644" width="285" height="20" fill="#fafafa" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="338" y="658" font-size="10" fill="#374151">    note</text>
+  <text x="613" y="658" font-size="10" fill="#6b7280" text-anchor="end">VARCHAR NULL</text>
+  <!-- timestamps -->
+  <rect x="330" y="664" width="285" height="20" fill="#f3f4f6" stroke="#e2e8f0" stroke-width=".5"/>
+  <text x="338" y="678" font-size="10" fill="#9ca3af">    created_at / updated_at</text>
+  <text x="613" y="678" font-size="10" fill="#9ca3af" text-anchor="end">TIMESTAMP</text>
+  <!-- unique index note -->
+  <rect x="330" y="684" width="285" height="18" fill="#ecfdf5" stroke="#a7f3d0" stroke-width=".5"/>
+  <text x="338" y="696" font-size="9" fill="#065f46">UQ (user_id, work_date, shift_schedule_id)</text>
+  <!-- border -->
+  <rect x="330" y="370" width="285" height="332" rx="0" fill="none" stroke="#0f766e" stroke-width="1.5"/>
+</g>
+
+<!-- ═══════════════════════════════════════════════════
+  FK RELATIONSHIP ARROWS
+══════════════════════════════════════════════════ -->
+
+<!-- 1. users.department_id → departments.id
+     from users left x=330 row y=184 → dept right x=270 row y=64 -->
+<path d="M 330,184 H 300 V 64 H 270"
+      fill="none" stroke="#64748b" stroke-width="1.4"
+      marker-start="url(#many)" marker-end="url(#fk-arr)"/>
+<text x="293" y="130" font-size="9" fill="#64748b" transform="rotate(-90,293,130)">department_id</text>
+
+<!-- 2. departments.manager_id → users.id
+     from dept right x=270 row y=124 → users left x=330 row y=64 -->
+<path d="M 270,124 H 305 V 64 H 330"
+      fill="none" stroke="#64748b" stroke-width="1.4" stroke-dasharray="5,3"
+      marker-end="url(#fk-arr-dashed)"/>
+<text x="285" y="92" font-size="9" fill="#64748b">manager</text>
+
+<!-- 3. face_encodings.user_id → users.id
+     from face_enc right x=270 row y=434 → route up via x=288 → users.id left x=330 y=64 -->
+<path d="M 270,434 H 288 V 64 H 330"
+      fill="none" stroke="#be185d" stroke-width="1.4"
+      marker-start="url(#many)" marker-end="url(#fk-arr)"/>
+<text x="281" y="260" font-size="9" fill="#be185d" transform="rotate(-90,281,260)">user_id</text>
+
+<!-- 4. attendances.user_id → users (bottom edge)
+     attendances top mid x=472 y=370 → users bottom mid x=472 y=274 -->
+<line x1="472" y1="370" x2="472" y2="274"
+      stroke="#0f766e" stroke-width="1.4"
+      marker-start="url(#many)" marker-end="url(#fk-arr)"/>
+<text x="476" y="325" font-size="9" fill="#0f766e">user_id</text>
+
+<!-- 5. attendances.device_id → devices.id
+     att right x=615 row y=454 → route via x=628 → dev left x=645 row y=64 -->
+<path d="M 615,454 H 630 V 64 H 645"
+      fill="none" stroke="#dc2626" stroke-width="1.4"
+      marker-start="url(#many)" marker-end="url(#fk-arr)"/>
+<text x="622" y="265" font-size="9" fill="#dc2626" transform="rotate(-90,622,265)">device_id</text>
+
+<!-- 6. attendances.shift_schedule_id → shift_schedules.id
+     att right x=615 row y=474 → route via x=622 → sched left x=645 row y=354 -->
+<path d="M 615,474 H 622 V 354 H 645"
+      fill="none" stroke="#0891b2" stroke-width="1.4"
+      marker-start="url(#many)" marker-end="url(#fk-arr)"/>
+<text x="615" y="415" font-size="9" fill="#0891b2">shift_sched_id</text>
+
+<!-- 7. shift_schedules.shift_template_id → shift_templates.id
+     sched right x=920 row y=374 → tpl left x=945 row y=64 -->
+<path d="M 920,374 H 932 V 64 H 945"
+      fill="none" stroke="#d97706" stroke-width="1.4"
+      marker-start="url(#many)" marker-end="url(#fk-arr)"/>
+<text x="924" y="220" font-size="9" fill="#d97706" transform="rotate(-90,924,220)">shift_template_id</text>
+
+<!-- 8. shift_schedules.created_by → users.id (long route over top)
+     sched top x=782 y=310 → route up to y=8 → across to users top x=462 y=20 -->
+<path d="M 782,310 V 8 H 462 V 20"
+      fill="none" stroke="#64748b" stroke-width="1.3" stroke-dasharray="5,3"
+      marker-end="url(#fk-arr-dashed)"/>
+<text x="600" y="7" font-size="9" fill="#64748b">created_by → users.id</text>
+
+<!-- 9. shift_schedules.assignee_id (poly) → users or departments (dashed purple)
+     sched left x=645 row y=414 → left arc → label only (too complex to draw both) -->
+<path d="M 645,414 H 620 V 184 H 595"
+      fill="none" stroke="#7e22ce" stroke-width="1.3" stroke-dasharray="4,3"
+      marker-end="url(#fk-arr-dashed)"/>
+<text x="600" y="300" font-size="8" fill="#7e22ce" transform="rotate(-90,600,300)">→ users (employee)</text>
+
+<path d="M 645,414 H 610 V 114 H 270"
+      fill="none" stroke="#7e22ce" stroke-width="1.3" stroke-dasharray="4,3"
+      marker-end="url(#fk-arr-dashed)"/>
+<text x="430" y="108" font-size="8" fill="#7e22ce">→ departments (poly)</text>
+
+</svg>
+</div>
+</body>
+</html>

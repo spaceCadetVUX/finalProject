@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>1.2 Sơ đồ chức năng tổng quát</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #f0f4f8;
+      padding: 40px 20px 60px;
+      color: #1a202c;
+    }
+
+    /* ── Header ─────────────────────────────────── */
+    .page-title {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+    .page-title h1 {
+      font-size: 15px;
+      font-weight: 600;
+      color: #4a5568;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .page-title h2 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #1a202c;
+    }
+
+    /* ── Note box ────────────────────────────────── */
+    .note {
+      max-width: 700px;
+      margin: 0 auto 40px;
+      background: #fff8e1;
+      border-left: 4px solid #f6ad55;
+      border-radius: 6px;
+      padding: 12px 16px;
+      font-size: 13px;
+      color: #744210;
+    }
+    .note strong { font-weight: 700; }
+
+    /* ── Tree wrapper ────────────────────────────── */
+    .tree-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* ── Root node ───────────────────────────────── */
+    .root-node {
+      background: #2b6cb0;
+      color: #fff;
+      border-radius: 12px;
+      padding: 18px 48px;
+      font-size: 16px;
+      font-weight: 700;
+      text-align: center;
+      box-shadow: 0 4px 16px rgba(43,108,176,.35);
+      position: relative;
+      z-index: 1;
+    }
+    .root-node small {
+      display: block;
+      font-size: 11px;
+      font-weight: 400;
+      opacity: .8;
+      margin-top: 4px;
+    }
+
+    /* ── Vertical line from root ─────────────────── */
+    .root-to-modules {
+      width: 2px;
+      height: 28px;
+      background: #a0aec0;
+    }
+
+    /* ── Horizontal bar connecting modules ───────── */
+    .h-bar-wrap {
+      display: flex;
+      align-items: flex-start;
+      gap: 0;
+      position: relative;
+    }
+    .h-bar {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      height: 2px;
+      background: #a0aec0;
+      /* width set dynamically via inline style per row */
+    }
+
+    /* ── Module column ───────────────────────────── */
+    .mod-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      padding: 0 10px;
+    }
+
+    /* small vertical line above each module */
+    .mod-col::before {
+      content: '';
+      display: block;
+      width: 2px;
+      height: 24px;
+      background: #a0aec0;
+      flex-shrink: 0;
+    }
+
+    /* ── Module box ──────────────────────────────── */
+    .mod-box {
+      border-radius: 10px;
+      padding: 11px 16px;
+      font-size: 13px;
+      font-weight: 700;
+      text-align: center;
+      color: #fff;
+      min-width: 148px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.15);
+      position: relative;
+      z-index: 1;
+    }
+    .mod-box .mod-num {
+      font-size: 10px;
+      font-weight: 800;
+      opacity: .75;
+      display: block;
+      margin-bottom: 3px;
+      letter-spacing: .5px;
+    }
+
+    /* Colors per module */
+    .m1 { background: #2f855a; }   /* Auth – green */
+    .m2 { background: #2b6cb0; }   /* Nhân viên – blue */
+    .m3 { background: #6b46c1; }   /* Phòng ban – purple */
+    .m4 { background: #b7791f; }   /* Ca làm việc – amber */
+    .m5 { background: #c53030; }   /* Thiết bị – red */
+    .m6 { background: #2c7a7b; }   /* Điểm danh – teal */
+    .m7 { background: #744210; }   /* Dashboard – brown */
+    .m8 { background: #553c9a; }   /* Báo cáo – indigo */
+
+    /* ── Sub-function list ───────────────────────── */
+    .sub-line {
+      width: 2px;
+      height: 16px;
+      background: #a0aec0;
+    }
+    .sub-list {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+      position: relative;
+    }
+    /* vertical connecting line alongside sub-items */
+    .sub-list::before {
+      content: '';
+      position: absolute;
+      left: 50%;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: #cbd5e0;
+      transform: translateX(-50%);
+    }
+
+    .sub-item-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      position: relative;
+      z-index: 1;
+    }
+    .sub-item-wrap .tick {
+      width: 16px;
+      height: 2px;
+      background: #cbd5e0;
+      flex-shrink: 0;
+    }
+    .sub-item {
+      background: #fff;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 11.5px;
+      color: #2d3748;
+      white-space: nowrap;
+      box-shadow: 0 1px 4px rgba(0,0,0,.06);
+      margin: 3px 0;
+    }
+    .sub-item.indent {
+      font-size: 10.5px;
+      color: #718096;
+      background: #f7fafc;
+      margin-left: 0;
+    }
+
+    /* ── Two-row grid for modules ────────────────── */
+    .row-grid {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 24px 12px;
+      max-width: 1300px;
+      padding: 0 10px;
+    }
+
+    /* ── Legend ──────────────────────────────────── */
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px 24px;
+      max-width: 900px;
+      margin: 48px auto 0;
+      border-top: 1px solid #e2e8f0;
+      padding-top: 24px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12px;
+      color: #4a5568;
+    }
+    .legend-dot {
+      width: 12px; height: 12px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+
+    @media print {
+      body { background: #fff; padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="page-title">
+  <h1>Đồ án cuối môn — Hệ thống Điểm danh Nhận diện Khuôn mặt</h1>
+  <h2>1.2 &nbsp;Sơ đồ chức năng tổng quát</h2>
+</div>
+
+<div class="note">
+  <strong>Lưu ý:</strong> Hệ thống <strong>không có chức năng đăng nhập dành cho nhân viên thông thường</strong>.
+  Chỉ các tài khoản có vai trò <strong>Super Admin / Admin / Manager</strong> mới có thể đăng nhập vào ứng dụng web.
+  Nhân viên được hệ thống nhận diện tự động qua thiết bị Raspberry Pi — không cần thao tác gì.
+</div>
+
+<!-- ════ TREE ════ -->
+<div class="tree-wrap">
+
+  <!-- Root -->
+  <div class="root-node">
+    HỆ THỐNG ĐIỂM DANH NHẬN DIỆN KHUÔN MẶT
+    <small>Face Recognition Attendance System</small>
+  </div>
+  <div class="root-to-modules"></div>
+
+  <!-- All module columns in a flex-wrap grid -->
+  <div class="row-grid">
+
+    <!-- ① Xác thực & Phân quyền -->
+    <div class="mod-col">
+      <div class="mod-box m1">
+        <span class="mod-num">NHÓM 1</span>
+        Xác thực &amp; Phân quyền
+      </div>
+      <div class="sub-line"></div>
+      <div class="sub-list">
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item">Đăng nhập hệ thống</div></div>
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item">Đăng xuất</div></div>
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item">Phân quyền theo vai trò</div></div>
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item indent">↳ Super Admin</div></div>
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item indent">↳ Admin</div></div>
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item indent">↳ Manager</div></div>
+      </div>
+    </div>
+
+    <!-- ② Quản lý Nhân viên -->
+    <div class="mod-col">
+      <div class="mod-box m2">
+        <span class="mod-num">NHÓM 2</span>
+        Quản lý Nhân viên
+      </div>
+      <div class="sub-line"></div>
+      <div class="sub-list">
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item">Xem danh sách nhân viên</div></div>
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item">Thêm nhân viên</div></div>
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item">Chỉnh sửa thông tin</div></div>
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item">Xóa mềm nhân viên</div></div>
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item">Đăng ký khuôn mặt</div></div>
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item indent">↳ Upload ảnh</div></div>
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item indent">↳ Trích xuất vector 128D (tự động)</div></div>
+      </div>
+    </div>
+
+    <!-- ③ Quản lý Phòng ban -->
+    <div class="mod-col">
+      <div class="mod-box m3">
+        <span class="mod-num">NHÓM 3</span>
+        Quản lý Phòng ban
+      </div>
+      <div class="sub-line"></div>
+      <div class="sub-list">
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item">Xem danh sách phòng ban</div></div>
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item">Thêm / sửa / xóa phòng ban</div></div>
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item">Phân công quản lý phòng ban</div></div>
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item">Cài đặt giờ làm việc mặc định</div></div>
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item">Cài đặt dung sai đi trễ</div></div>
+      </div>
+    </div>
+
+    <!-- ④ Quản lý Ca làm việc -->
+    <div class="mod-col">
+      <div class="mod-box m4">
+        <span class="mod-num">NHÓM 4</span>
+        Quản lý Ca làm việc
+      </div>
+      <div class="sub-line"></div>
+      <div class="sub-list">
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item">Định nghĩa mẫu ca (Shift Template)</div></div>
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item">Lên lịch ca (Shift Schedule)</div></div>
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item indent">↳ Theo từng nhân viên</div></div>
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item indent">↳ Theo cả phòng ban</div></div>
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item">Cài đặt ngày áp dụng &amp; dung sai</div></div>
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item">Xem lịch ca theo tuần</div></div>
+      </div>
+    </div>
+
+    <!-- ⑤ Quản lý Thiết bị -->
+    <div class="mod-col">
+      <div class="mod-box m5">
+        <span class="mod-num">NHÓM 5</span>
+        Quản lý Thiết bị
+      </div>
+      <div class="sub-line"></div>
+      <div class="sub-list">
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item">Đăng ký thiết bị Raspberry Pi</div></div>
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item">Cấp / Thu hồi token xác thực</div></div>
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item">Giám sát Online / Offline</div></div>
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item">Xem vị trí đặt thiết bị</div></div>
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item">Xem lần ping cuối cùng</div></div>
+      </div>
+    </div>
+
+    <!-- ⑥ Điểm danh -->
+    <div class="mod-col">
+      <div class="mod-box m6">
+        <span class="mod-num">NHÓM 6</span>
+        Điểm danh
+      </div>
+      <div class="sub-line"></div>
+      <div class="sub-list">
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item">Tự động — qua Raspberry Pi</div></div>
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item indent">↳ Nhận diện khuôn mặt real-time</div></div>
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item indent">↳ Ghi Check-in / Check-out</div></div>
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item indent">↳ Đệm offline &amp; đồng bộ</div></div>
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item">Thủ công — Admin / Manager</div></div>
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item indent">↳ Thêm / chỉnh sửa bản ghi</div></div>
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item">Phân loại trạng thái chuyên cần</div></div>
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item indent">↳ Đúng giờ / Trễ / Về sớm / Vắng</div></div>
+      </div>
+    </div>
+
+    <!-- ⑦ Dashboard & Thống kê -->
+    <div class="mod-col">
+      <div class="mod-box m7">
+        <span class="mod-num">NHÓM 7</span>
+        Dashboard &amp; Thống kê
+      </div>
+      <div class="sub-line"></div>
+      <div class="sub-list">
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item">Tổng quan ngày hiện tại</div></div>
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item">Biểu đồ chuyên cần 7 ngày</div></div>
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item">Danh sách chấm công gần đây</div></div>
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item">Cảnh báo vắng mặt / trễ giờ</div></div>
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item">Giám sát trạng thái thiết bị</div></div>
+      </div>
+    </div>
+
+    <!-- ⑧ Báo cáo & Xuất dữ liệu -->
+    <div class="mod-col">
+      <div class="mod-box m8">
+        <span class="mod-num">NHÓM 8</span>
+        Báo cáo &amp; Xuất dữ liệu
+      </div>
+      <div class="sub-line"></div>
+      <div class="sub-list">
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item">Xem báo cáo chuyên cần</div></div>
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item">Lọc theo phòng ban / nhân viên</div></div>
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item">Lọc theo khoảng thời gian</div></div>
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item">Xuất file Excel (.xlsx)</div></div>
+        <div class="sub-item-wrap"><span class="tick"></span><div class="sub-item">Xuất file PDF</div></div>
+      </div>
+    </div>
+
+  </div><!-- /row-grid -->
+</div><!-- /tree-wrap -->
+
+<!-- ════ LEGEND ════ -->
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:#2f855a"></div>Xác thực &amp; Phân quyền</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#2b6cb0"></div>Quản lý Nhân viên</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#6b46c1"></div>Quản lý Phòng ban</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#b7791f"></div>Quản lý Ca làm việc</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#c53030"></div>Quản lý Thiết bị</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#2c7a7b"></div>Điểm danh</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#744210"></div>Dashboard &amp; Thống kê</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#553c9a"></div>Báo cáo &amp; Xuất dữ liệu</div>
+</div>
+
+</body>
+</html>

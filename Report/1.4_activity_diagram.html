@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>1.4 Biểu đồ Hoạt động</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; padding: 30px 20px 60px; }
+    .page-title { text-align: center; margin-bottom: 20px; }
+    .page-title h1 { font-size: 13px; font-weight: 600; color: #4a5568; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
+    .page-title h2 { font-size: 20px; font-weight: 700; color: #1a202c; }
+    .diagram-section { margin-bottom: 40px; }
+    .diagram-section h3 {
+      font-size: 15px; font-weight: 700; color: #2d3748;
+      background: white; display: inline-block;
+      padding: 8px 20px; border-radius: 8px;
+      border-left: 4px solid #4299e1;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    }
+    .svg-wrap {
+      background: white; border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,.1);
+      overflow-x: auto; padding: 8px;
+    }
+    svg { display: block; }
+    .legend {
+      display: flex; flex-wrap: wrap; justify-content: center;
+      gap: 10px 28px; max-width: 900px; margin: 24px auto 0;
+      background: white; border-radius: 8px;
+      padding: 16px 24px; box-shadow: 0 2px 8px rgba(0,0,0,.08);
+    }
+    .legend h3 { width: 100%; text-align: center; font-size: 13px; font-weight: 700; color: #4a5568; margin-bottom: 8px; }
+    .leg { display: flex; align-items: center; gap: 9px; font-size: 12px; color: #2d3748; }
+    .leg-box { width: 28px; height: 16px; border-radius: 8px; }
+    .leg-line { width: 28px; height: 3px; border-radius: 2px; }
+    .leg-dash { width: 28px; height: 0; border-top: 2px dashed #805ad5; }
+  </style>
+</head>
+<body>
+
+<div class="page-title">
+  <h1>Đồ án cuối môn — Hệ thống Điểm danh Nhận diện Khuôn mặt</h1>
+  <h2>1.4 &nbsp;Biểu đồ Hoạt động (Activity Diagram)</h2>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     DIAGRAM 1 — Quy trình điểm danh tự động
+════════════════════════════════════════════════════════ -->
+<div class="diagram-section">
+  <h3>Sơ đồ 1 · Quy trình Điểm danh Tự động (Raspberry Pi ↔ Server)</h3>
+  <div class="svg-wrap">
+  <svg viewBox="0 0 1100 1680" width="1100" height="1680"
+       xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI',Arial,sans-serif">
+    <defs>
+      <marker id="arr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+        <polygon points="0 0,8 3,0 6" fill="#555"/>
+      </marker>
+      <marker id="arr-p" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+        <polygon points="0 0,8 3,0 6" fill="#805ad5"/>
+      </marker>
+      <filter id="sh"><feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="#00000018"/></filter>
+    </defs>
+
+    <!-- ── Swimlane backgrounds ── -->
+    <rect x="0"   y="0" width="550" height="1680" fill="#fff5f5" rx="0"/>
+    <rect x="550" y="0" width="550" height="1680" fill="#eff6ff" rx="0"/>
+
+    <!-- ── Swimlane headers ── -->
+    <rect x="0"   y="0" width="550" height="58" fill="#fc8181" rx="0"/>
+    <rect x="550" y="0" width="550" height="58" fill="#63b3ed" rx="0"/>
+    <text x="275" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="white">🖥 Raspberry Pi 4</text>
+    <text x="275" y="50" text-anchor="middle" font-size="10" fill="#fff5f5">Camera · Face Recognition · Local SQLite</text>
+    <text x="825" y="34" text-anchor="middle" font-size="14" font-weight="700" fill="white">🌐 Laravel Server</text>
+    <text x="825" y="50" text-anchor="middle" font-size="10" fill="#eff6ff">REST API · Database · Storage</text>
+
+    <!-- Lane divider -->
+    <line x1="550" y1="58" x2="550" y2="1680" stroke="#cbd5e0" stroke-width="2" stroke-dasharray="8,4"/>
+
+    <!-- ══════════ PI LANE (cx=275) ══════════ -->
+
+    <!-- Start node -->
+    <circle cx="275" cy="95" r="14" fill="#1a202c"/>
+    <!-- arrow -->
+    <line x1="275" y1="109" x2="275" y2="127" stroke="#555" stroke-width="1.5" marker-end="url(#arr)"/>
+
+    <!-- Activity: Khởi động -->
+    <rect x="160" y="129" width="230" height="44" rx="22" fill="white" stroke="#f56565" stroke-width="1.8" filter="url(#sh)"/>
+    <text x="275" y="149" text-anchor="middle" font-size="11.5" fill="#742a2a" font-weight="600">Khởi động hệ thống</text>
+    <text x="275" y="163" text-anchor="middle" font-size="10" fill="#9b2c2c">Kết nối Server · Xác thực Token</text>
+    <!-- arrow -->
+    <line x1="275" y1="173" x2="275" y2="191" stroke="#555" stroke-width="1.5" marker-end="url(#arr)"/>
+
+    <!-- Activity: Tải Encoding -->
+    <rect x="160" y="193" width="230" height="44" rx="22" fill="white" stroke="#f56565" stroke-width="1.8" filter="url(#sh)"/>
+    <text x="275" y="213" text-anchor="middle" font-size="11.5" fill="#742a2a" font-weight="600">Tải toàn bộ Encoding KM</text>
+    <text x="275" y="227" text-anchor="middle" font-size="10" fill="#9b2c2c">Full sync từ GET /api/encodings</text>
+    <!-- arrow -->
+    <line x1="275" y1="237" x2="275" y2="257" stroke="#555" stroke-width="1.5" marker-end="url(#arr)"/>
+
+    <!-- ★ Connector A — Loop Start ★ -->
+    <circle cx="275" cy="272" r="16" fill="white" stroke="#1a202c" stroke-width="2.5"/>
+    <text x="275" y="277" text-anchor="middle" font-size="12" font-weight="900" fill="#1a202c">A</text>
+    <!-- Annotation -->
+    <text x="298" y="268" font-size="9" fill="#718096" font-style="italic">← vòng lặp quay về đây</text>
+    <!-- arrow -->
+    <line x1="275" y1="288" x2="275" y2="308" stroke="#555" stroke-width="1.5" marker-end="url(#arr)"/>
+
+    <!-- Activity: Đọc Frame -->
+    <rect x="160" y="310" width="230" height="44" rx="22" fill="white" stroke="#f56565" stroke-width="1.8" filter="url(#sh)"/>
+    <text x="275" y="330" text-anchor="middle" font-size="11.5" fill="#742a2a" font-weight="600">Đọc Frame từ Camera</text>
+    <text x="275" y="344" text-anchor="middle" font-size="10" fill="#9b2c2c">OpenCV VideoCapture · 640×480</text>
+    <!-- arrow -->
+    <line x1="275" y1="354" x2="275" y2="374" stroke="#555" stroke-width="1.5" marker-end="url(#arr)"/>
+
+    <!-- Decision: Face recognized? -->
+    <polygon points="275,374 325,410 275,446 225,410" fill="white" stroke="#f56565" stroke-width="1.8" filter="url(#sh)"/>
+    <text x="275" y="407" text-anchor="middle" font-size="10" fill="#742a2a" font-weight="700">Nhận diện KM</text>
+    <text x="275" y="420" text-anchor="middle" font-size="10" fill="#742a2a" font-weight="700">thành công?</text>
+    <!-- Yes label (bottom) -->
+    <text x="290" y="462" font-size="9.5" fill="#276749" font-weight="700">Có</text>
+    <!-- arrow Yes down -->
+    <line x1="275" y1="446" x2="275" y2="470" stroke="#555" stroke-width="1.5" marker-end="url(#arr)"/>
+    <!-- No label + short arrow right + mini-A -->
+    <line x1="325" y1="410" x2="375" y2="410" stroke="#555" stroke-width="1.3" marker-end="url(#arr)"/>
+    <circle cx="390" cy="410" r="11" fill="white" stroke="#1a202c" stroke-width="1.8"/>
+    <text x="390" y="414" text-anchor="middle" font-size="10" font-weight="900" fill="#1a202c">A</text>
+    <text x="410" y="407" font-size="9" fill="#c53030">Không</text>
+    <text x="354" y="404" font-size="9" fill="#718096">confidence &lt; 50%</text>
+
+    <!-- Decision: In Cooldown? -->
+    <polygon points="275,470 325,506 275,542 225,506" fill="white" stroke="#f56565" stroke-width="1.8" filter="url(#sh)"/>
+    <text x="275" y="503" text-anchor="middle" font-size="10" fill="#742a2a" font-weight="700">Trong Cooldown</text>
+    <text x="275" y="516" text-anchor="middle" font-size="10" fill="#742a2a" font-weight="700">(5 phút)?</text>
+    <!-- No label (bottom) = not in cooldown → continue -->
+    <text x="290" y="558" font-size="9.5" fill="#276749" font-weight="700">Không</text>
+    <line x1="275" y1="542" x2="275" y2="566" stroke="#555" stroke-width="1.5" marker-end="url(#arr)"/>
+    <!-- Yes → mini-A (right) -->
+    <line x1="325" y1="506" x2="375" y2="506" stroke="#555" stroke-width="1.3" marker-end="url(#arr)"/>
+    <circle cx="390" cy="506" r="11" fill="white" stroke="#1a202c" stroke-width="1.8"/>
+    <text x="390" y="510" text-anchor="middle" font-size="10" font-weight="900" fill="#1a202c">A</text>
+    <text x="410" y="503" font-size="9" fill="#c53030">Có (bỏ qua)</text>
+
+    <!-- Activity: Lấy Ca làm việc -->
+    <rect x="160" y="568" width="230" height="44" rx="22" fill="white" stroke="#f56565" stroke-width="1.8" filter="url(#sh)"/>
+    <text x="275" y="588" text-anchor="middle" font-size="11.5" fill="#742a2a" font-weight="600">Lấy Ca làm việc Active</text>
+    <text x="275" y="602" text-anchor="middle" font-size="10" fill="#9b2c2c">GET /api/shifts/active · cache 15s</text>
+    <line x1="275" y1="612" x2="275" y2="630" stroke="#555" stroke-width="1.5" marker-end="url(#arr)"/>
+
+    <!-- Decision: Shift active? -->
+    <polygon points="275,630 325,666 275,702 225,666" fill="white" stroke="#f56565" stroke-width="1.8" filter="url(#sh)"/>
+    <text x="275" y="663" text-anchor="middle" font-size="10" fill="#742a2a" font-weight="700">Có Ca làm việc</text>
+    <text x="275" y="676" text-anchor="middle" font-size="10" fill="#742a2a" font-weight="700">đang Active?</text>
+    <text x="290" y="718" font-size="9.5" fill="#276749" font-weight="700">Có</text>
+    <line x1="275" y1="702" x2="275" y2="726" stroke="#555" stroke-width="1.5" marker-end="url(#arr)"/>
+    <!-- No → mini-A -->
+    <line x1="325" y1="666" x2="375" y2="666" stroke="#555" stroke-width="1.3" marker-end="url(#arr)"/>
+    <circle cx="390" cy="666" r="11" fill="white" stroke="#1a202c" stroke-width="1.8"/>
+    <text x="390" y="670" text-anchor="middle" font-size="10" font-weight="900" fill="#1a202c">A</text>
+    <text x="410" y="663" font-size="9" fill="#c53030">Không</text>
+
+    <!-- Activity: Xác định loại -->
+    <rect x="160" y="728" width="230" height="44" rx="22" fill="white" stroke="#f56565" stroke-width="1.8" filter="url(#sh)"/>
+    <text x="275" y="748" text-anchor="middle" font-size="11.5" fill="#742a2a" font-weight="600">Xác định: Check-in / Check-out</text>
+    <text x="275" y="762" text-anchor="middle" font-size="10" fill="#9b2c2c">Dựa trên thời điểm giữa ca</text>
+    <line x1="275" y1="772" x2="275" y2="790" stroke="#555" stroke-width="1.5" marker-end="url(#arr)"/>
+
+    <!-- Decision: Network? -->
+    <polygon points="275,790 325,826 275,862 225,826" fill="white" stroke="#f56565" stroke-width="1.8" filter="url(#sh)"/>
+    <text x="275" y="823" text-anchor="middle" font-size="10" fill="#742a2a" font-weight="700">Có kết nối</text>
+    <text x="275" y="836" text-anchor="middle" font-size="10" fill="#742a2a" font-weight="700">mạng?</text>
+    <!-- Yes: down -->
+    <text x="290" y="878" font-size="9.5" fill="#276749" font-weight="700">Có</text>
+    <line x1="275" y1="862" x2="275" y2="890" stroke="#555" stroke-width="1.5" marker-end="url(#arr)"/>
+    <!-- No: left → SQLite box -->
+    <line x1="225" y1="826" x2="130" y2="826" stroke="#555" stroke-width="1.3"/>
+    <text x="170" y="820" font-size="9" fill="#c53030">Không</text>
+    <line x1="130" y1="826" x2="130" y2="900" stroke="#555" stroke-width="1.3" marker-end="url(#arr)"/>
+
+    <!-- Activity: Lưu SQLite (offline branch, left side) -->
+    <rect x="28" y="902" width="205" height="44" rx="22" fill="#fefce8" stroke="#d69e2e" stroke-width="1.8" filter="url(#sh)"/>
+    <text x="130" y="922" text-anchor="middle" font-size="11" fill="#744210" font-weight="600">Lưu vào SQLite Local</text>
+    <text x="130" y="936" text-anchor="middle" font-size="9.5" fill="#92400e">pending_records (synced=0)</text>
+    <!-- mini-A below SQLite -->
+    <line x1="130" y1="946" x2="130" y2="966" stroke="#555" stroke-width="1.3" marker-end="url(#arr)"/>
+    <circle cx="130" cy="977" r="11" fill="white" stroke="#1a202c" stroke-width="1.8"/>
+    <text x="130" y="981" text-anchor="middle" font-size="10" font-weight="900" fill="#1a202c">A</text>
+    <text x="148" y="978" font-size="9" fill="#718096">→ chờ sync</text>
+
+    <!-- Activity: Gửi API -->
+    <rect x="160" y="892" width="230" height="44" rx="22" fill="white" stroke="#f56565" stroke-width="1.8" filter="url(#sh)"/>
+    <text x="275" y="912" text-anchor="middle" font-size="11.5" fill="#742a2a" font-weight="600">Gửi POST /api/attendance</text>
+    <text x="275" y="926" text-anchor="middle" font-size="10" fill="#9b2c2c">user_id · type · confidence · image_b64</text>
+
+    <!-- ★ CROSS-LANE API ARROW ★ -->
+    <!-- From Pi activity right edge → Server lane -->
+    <path d="M 390,914 L 540,914 L 540,940 L 810,940"
+          stroke="#805ad5" stroke-width="2" fill="none" stroke-dasharray="7,3"
+          marker-end="url(#arr-p)"/>
+    <rect x="420" y="900" width="110" height="16" rx="4" fill="#e9d8fd"/>
+    <text x="475" y="912" text-anchor="middle" font-size="9" fill="#553c9a" font-weight="600">POST /api/attendance</text>
+
+    <!-- ══════════ SERVER LANE (cx=825) ══════════ -->
+
+    <!-- Activity: Validate Token -->
+    <rect x="712" y="924" width="230" height="44" rx="22" fill="white" stroke="#4299e1" stroke-width="1.8" filter="url(#sh)"/>
+    <text x="827" y="944" text-anchor="middle" font-size="11.5" fill="#1a365d" font-weight="600">Xác thực Device Token</text>
+    <text x="827" y="958" text-anchor="middle" font-size="10" fill="#2c5282">Kiểm tra bảng devices · middleware</text>
+    <line x1="827" y1="968" x2="827" y2="988" stroke="#555" stroke-width="1.5" marker-end="url(#arr)"/>
+
+    <!-- Activity: Find/Create Attendance -->
+    <rect x="712" y="990" width="230" height="44" rx="22" fill="white" stroke="#4299e1" stroke-width="1.8" filter="url(#sh)"/>
+    <text x="827" y="1010" text-anchor="middle" font-size="11.5" fill="#1a365d" font-weight="600">Tìm / Tạo Bản ghi ĐD</text>
+    <text x="827" y="1024" text-anchor="middle" font-size="10" fill="#2c5282">firstOrCreate(user_id, work_date)</text>
+    <line x1="827" y1="1034" x2="827" y2="1054" stroke="#555" stroke-width="1.5" marker-end="url(#arr)"/>
+
+    <!-- Activity: Calculate Status -->
+    <rect x="712" y="1056" width="230" height="44" rx="22" fill="white" stroke="#4299e1" stroke-width="1.8" filter="url(#sh)"/>
+    <text x="827" y="1076" text-anchor="middle" font-size="11.5" fill="#1a365d" font-weight="600">Tính Trạng thái Chuyên cần</text>
+    <text x="827" y="1090" text-anchor="middle" font-size="10" fill="#2c5282">present / late / early_leave / absent</text>
+    <line x1="827" y1="1100" x2="827" y2="1120" stroke="#555" stroke-width="1.5" marker-end="url(#arr)"/>
+
+    <!-- Activity: Save Image -->
+    <rect x="712" y="1122" width="230" height="44" rx="22" fill="white" stroke="#4299e1" stroke-width="1.8" filter="url(#sh)"/>
+    <text x="827" y="1142" text-anchor="middle" font-size="11.5" fill="#1a365d" font-weight="600">Lưu Ảnh Khuôn mặt</text>
+    <text x="827" y="1156" text-anchor="middle" font-size="10" fill="#2c5282">base64 → storage/faces/</text>
+    <line x1="827" y1="1166" x2="827" y2="1186" stroke="#555" stroke-width="1.5" marker-end="url(#arr)"/>
+
+    <!-- Activity: Return Result -->
+    <rect x="712" y="1188" width="230" height="44" rx="22" fill="white" stroke="#4299e1" stroke-width="1.8" filter="url(#sh)"/>
+    <text x="827" y="1208" text-anchor="middle" font-size="11.5" fill="#1a365d" font-weight="600">Trả Kết quả JSON về Pi</text>
+    <text x="827" y="1222" text-anchor="middle" font-size="10" fill="#2c5282">status · message · timestamp</text>
+
+    <!-- ★ RETURN ARROW Server → Pi ★ -->
+    <path d="M 712,1220 L 560,1220 L 560,1250 L 400,1250"
+          stroke="#805ad5" stroke-width="2" fill="none" stroke-dasharray="7,3"
+          marker-end="url(#arr-p)"/>
+    <rect x="555" y="1226" width="92" height="16" rx="4" fill="#e9d8fd"/>
+    <text x="600" y="1238" text-anchor="middle" font-size="9" fill="#553c9a" font-weight="600">JSON response</text>
+
+    <!-- ══════════ PI LANE continues ══════════ -->
+
+    <!-- Merge point for return -->
+    <line x1="275" y1="936" x2="275" y2="1242" stroke="#555" stroke-width="1" stroke-dasharray="3,3"/>
+    <!-- Arrow from return point -->
+    <line x1="275" y1="1242" x2="275" y2="1262" stroke="#555" stroke-width="1.5" marker-end="url(#arr)"/>
+
+    <!-- Activity: Display Result -->
+    <rect x="160" y="1264" width="230" height="44" rx="22" fill="white" stroke="#f56565" stroke-width="1.8" filter="url(#sh)"/>
+    <text x="275" y="1284" text-anchor="middle" font-size="11.5" fill="#742a2a" font-weight="600">Hiển thị Kết quả</text>
+    <text x="275" y="1298" text-anchor="middle" font-size="10" fill="#9b2c2c">Tên · Trạng thái · Giờ trên màn hình</text>
+    <line x1="275" y1="1308" x2="275" y2="1328" stroke="#555" stroke-width="1.5" marker-end="url(#arr)"/>
+
+    <!-- Activity: Update Cooldown -->
+    <rect x="160" y="1330" width="230" height="44" rx="22" fill="white" stroke="#f56565" stroke-width="1.8" filter="url(#sh)"/>
+    <text x="275" y="1350" text-anchor="middle" font-size="11.5" fill="#742a2a" font-weight="600">Cập nhật Cooldown Timer</text>
+    <text x="275" y="1364" text-anchor="middle" font-size="10" fill="#9b2c2c">last_seen[user_id] = now()</text>
+    <line x1="275" y1="1374" x2="275" y2="1394" stroke="#555" stroke-width="1.5" marker-end="url(#arr)"/>
+
+    <!-- Connector A (end of iteration) -->
+    <circle cx="275" cy="1409" r="16" fill="white" stroke="#1a202c" stroke-width="2.5"/>
+    <text x="275" y="1414" text-anchor="middle" font-size="12" font-weight="900" fill="#1a202c">A</text>
+    <!-- Curved loop-back arrow: right → up → connector A at top -->
+    <path d="M 291,1409 Q 500,1409 500,272 Q 500,272 291,272"
+          stroke="#1a202c" stroke-width="1.5" fill="none" stroke-dasharray="6,3"
+          marker-end="url(#arr)"/>
+    <text x="510" y="850" font-size="10" fill="#4a5568" font-style="italic" transform="rotate(-90,510,850)">← Quay về vòng lặp chính</text>
+
+    <!-- ══════════ PERIODIC TASKS NOTE ══════════ -->
+    <!-- Note box in Server lane, positioned mid-diagram -->
+    <rect x="568" y="700" width="260" height="140" rx="8"
+          fill="#f0fff4" stroke="#68d391" stroke-width="1.5"/>
+    <!-- Dog-ear -->
+    <polygon points="808,700 828,700 828,720" fill="#68d391"/>
+    <text x="698" y="720" text-anchor="middle" font-size="11" font-weight="700" fill="#22543d">⏱ Định kỳ (mỗi 60 giây)</text>
+    <line x1="578" y1="728" x2="820" y2="728" stroke="#68d391" stroke-width="1"/>
+    <text x="586" y="748" font-size="10.5" fill="#276749">① Ping heartbeat → Server</text>
+    <text x="586" y="768" font-size="10.5" fill="#276749">② Upload pending_records (Batch)</text>
+    <text x="586" y="788" font-size="10.5" fill="#276749">③ Delta sync Encoding mới</text>
+    <text x="586" y="808" font-size="10.5" fill="#276749">   (GET /api/encodings?updated_since)</text>
+    <text x="586" y="828" font-size="10.5" fill="#276749">④ Cập nhật trạng thái device</text>
+
+    <!-- End node (shutdown case) -->
+    <text x="275" y="1460" text-anchor="middle" font-size="10" fill="#718096" font-style="italic">— Khi tắt hệ thống —</text>
+    <circle cx="275" cy="1490" r="14" fill="#1a202c"/>
+    <circle cx="275" cy="1490" r="20" fill="none" stroke="#1a202c" stroke-width="3"/>
+
+    <!-- Labels for Yes/No on cross-lane -->
+    <text x="282" y="888" font-size="9.5" fill="#276749" font-weight="700">Có</text>
+
+  </svg>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     DIAGRAM 2 — Quy trình Đăng ký Khuôn mặt
+════════════════════════════════════════════════════════ -->
+<div class="diagram-section">
+  <h3>Sơ đồ 2 · Quy trình Admin Đăng ký Khuôn mặt Nhân viên</h3>
+  <div class="svg-wrap">
+  <svg viewBox="0 0 1100 720" width="1100" height="720"
+       xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI',Arial,sans-serif">
+    <defs>
+      <marker id="arr2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+        <polygon points="0 0,8 3,0 6" fill="#555"/>
+      </marker>
+      <marker id="arr2-p" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+        <polygon points="0 0,8 3,0 6" fill="#805ad5"/>
+      </marker>
+      <filter id="sh2"><feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="#00000018"/></filter>
+    </defs>
+
+    <!-- Swimlane backgrounds -->
+    <rect x="0"   y="0" width="550" height="720" fill="#faf5ff"/>
+    <rect x="550" y="0" width="275" height="720" fill="#eff6ff"/>
+    <rect x="825" y="0" width="275" height="720" fill="#f0fff4"/>
+
+    <!-- Swimlane headers -->
+    <rect x="0"   y="0" width="550" height="55" fill="#805ad5"/>
+    <rect x="550" y="0" width="275" height="55" fill="#4299e1"/>
+    <rect x="825" y="0" width="275" height="55" fill="#38a169"/>
+    <text x="275" y="30" text-anchor="middle" font-size="13" font-weight="700" fill="white">👤 Admin / Super Admin</text>
+    <text x="275" y="46" text-anchor="middle" font-size="10" fill="#e9d8fd">Trình duyệt Web · Dashboard</text>
+    <text x="687" y="30" text-anchor="middle" font-size="13" font-weight="700" fill="white">🌐 Laravel Server</text>
+    <text x="687" y="46" text-anchor="middle" font-size="10" fill="#ebf8ff">Queue · Storage · DB</text>
+    <text x="962" y="30" text-anchor="middle" font-size="13" font-weight="700" fill="white">🐍 Python Script</text>
+    <text x="962" y="46" text-anchor="middle" font-size="10" fill="#f0fff4">face_recognition · dlib</text>
+
+    <!-- Dividers -->
+    <line x1="550" y1="55" x2="550" y2="720" stroke="#cbd5e0" stroke-width="2" stroke-dasharray="8,4"/>
+    <line x1="825" y1="55" x2="825" y2="720" stroke="#cbd5e0" stroke-width="2" stroke-dasharray="8,4"/>
+
+    <!-- Start -->
+    <circle cx="275" cy="90" r="13" fill="#1a202c"/>
+    <line x1="275" y1="103" x2="275" y2="121" stroke="#555" stroke-width="1.5" marker-end="url(#arr2)"/>
+
+    <!-- Activity: Đăng nhập -->
+    <rect x="160" y="123" width="230" height="40" rx="20" fill="white" stroke="#805ad5" stroke-width="1.8" filter="url(#sh2)"/>
+    <text x="275" y="148" text-anchor="middle" font-size="11.5" fill="#44337a" font-weight="600">Đăng nhập hệ thống</text>
+    <line x1="275" y1="163" x2="275" y2="183" stroke="#555" stroke-width="1.5" marker-end="url(#arr2)"/>
+
+    <!-- Activity: Chọn nhân viên -->
+    <rect x="160" y="185" width="230" height="40" rx="20" fill="white" stroke="#805ad5" stroke-width="1.8" filter="url(#sh2)"/>
+    <text x="275" y="210" text-anchor="middle" font-size="11.5" fill="#44337a" font-weight="600">Chọn Nhân viên → Upload Ảnh</text>
+    <line x1="275" y1="225" x2="275" y2="245" stroke="#555" stroke-width="1.5" marker-end="url(#arr2)"/>
+
+    <!-- Decision: Ảnh hợp lệ? (in Admin lane) -->
+    <polygon points="275,245 330,275 275,305 220,275" fill="white" stroke="#805ad5" stroke-width="1.8" filter="url(#sh2)"/>
+    <text x="275" y="272" text-anchor="middle" font-size="10" fill="#44337a" font-weight="700">Ảnh hợp lệ?</text>
+    <text x="275" y="285" text-anchor="middle" font-size="9" fill="#553c9a">(định dạng · kích thước)</text>
+    <!-- No → error -->
+    <line x1="220" y1="275" x2="130" y2="275" stroke="#555" stroke-width="1.3" marker-end="url(#arr2)"/>
+    <rect x="28" y="257" width="102" height="36" rx="8" fill="#fff5f5" stroke="#fc8181" stroke-width="1.5"/>
+    <text x="79" y="278" text-anchor="middle" font-size="10" fill="#c53030" font-weight="600">Báo lỗi</text>
+    <text x="79" y="290" text-anchor="middle" font-size="9" fill="#e53e3e">→ Yêu cầu lại</text>
+    <text x="170" y="269" font-size="9" fill="#c53030">Không</text>
+    <!-- Yes → down, cross to server -->
+    <text x="285" y="322" font-size="9.5" fill="#276749" font-weight="700">Có</text>
+    <!-- Arrow from decision bottom to server -->
+    <path d="M 275,305 L 275,335 L 560,335 L 560,350 L 660,350"
+          stroke="#805ad5" stroke-width="1.8" fill="none" stroke-dasharray="6,3"
+          marker-end="url(#arr2-p)"/>
+    <rect x="350" y="322" width="90" height="14" rx="4" fill="#e9d8fd"/>
+    <text x="395" y="333" text-anchor="middle" font-size="9" fill="#553c9a" font-weight="600">POST upload</text>
+
+    <!-- SERVER LANE -->
+    <!-- Activity: Validate & Save Image -->
+    <rect x="567" y="334" width="230" height="40" rx="20" fill="white" stroke="#4299e1" stroke-width="1.8" filter="url(#sh2)"/>
+    <text x="682" y="359" text-anchor="middle" font-size="11" fill="#1a365d" font-weight="600">Lưu Ảnh vào Storage</text>
+    <line x1="682" y1="374" x2="682" y2="394" stroke="#555" stroke-width="1.5" marker-end="url(#arr2)"/>
+
+    <!-- Activity: Dispatch Queue Job -->
+    <rect x="567" y="396" width="230" height="40" rx="20" fill="white" stroke="#4299e1" stroke-width="1.8" filter="url(#sh2)"/>
+    <text x="682" y="416" text-anchor="middle" font-size="11" fill="#1a365d" font-weight="600">Dispatch EncodeFaceJob</text>
+    <text x="682" y="430" text-anchor="middle" font-size="9.5" fill="#2c5282">đẩy vào Queue (database driver)</text>
+    <!-- Arrow to Python lane -->
+    <path d="M 797,416 L 825,416 L 825,430 L 840,430"
+          stroke="#805ad5" stroke-width="1.8" fill="none" stroke-dasharray="6,3"
+          marker-end="url(#arr2-p)"/>
+
+    <!-- PYTHON LANE -->
+    <!-- Activity: Run Python -->
+    <rect x="842" y="414" width="230" height="40" rx="20" fill="white" stroke="#38a169" stroke-width="1.8" filter="url(#sh2)"/>
+    <text x="957" y="434" text-anchor="middle" font-size="11" fill="#22543d" font-weight="600">Chạy face_encode_single.py</text>
+    <text x="957" y="448" text-anchor="middle" font-size="9.5" fill="#276749">Nhận đường dẫn ảnh</text>
+    <line x1="957" y1="454" x2="957" y2="474" stroke="#555" stroke-width="1.5" marker-end="url(#arr2)"/>
+
+    <!-- Activity: Compute Vector -->
+    <rect x="842" y="476" width="230" height="40" rx="20" fill="white" stroke="#38a169" stroke-width="1.8" filter="url(#sh2)"/>
+    <text x="957" y="496" text-anchor="middle" font-size="11" fill="#22543d" font-weight="600">Trích xuất Vector 128 chiều</text>
+    <text x="957" y="510" text-anchor="middle" font-size="9.5" fill="#276749">face_recognition.face_encodings()</text>
+    <!-- Return to server -->
+    <path d="M 842,496 L 825,496 L 825,510 L 800,510"
+          stroke="#805ad5" stroke-width="1.8" fill="none" stroke-dasharray="6,3"
+          marker-end="url(#arr2-p)"/>
+
+    <!-- SERVER: Save encoding -->
+    <rect x="567" y="494" width="230" height="40" rx="20" fill="white" stroke="#4299e1" stroke-width="1.8" filter="url(#sh2)"/>
+    <text x="682" y="514" text-anchor="middle" font-size="11" fill="#1a365d" font-weight="600">Lưu FaceEncoding vào DB</text>
+    <text x="682" y="528" text-anchor="middle" font-size="9.5" fill="#2c5282">bảng face_encodings · JSON 128D</text>
+    <!-- Return to admin -->
+    <path d="M 567,514 L 540,514 L 540,540 L 400,540"
+          stroke="#805ad5" stroke-width="1.8" fill="none" stroke-dasharray="6,3"
+          marker-end="url(#arr2-p)"/>
+
+    <!-- ADMIN: Success -->
+    <rect x="160" y="524" width="230" height="40" rx="20" fill="white" stroke="#805ad5" stroke-width="1.8" filter="url(#sh2)"/>
+    <text x="275" y="544" text-anchor="middle" font-size="11.5" fill="#44337a" font-weight="600">Hiển thị: Đăng ký thành công</text>
+    <text x="275" y="558" text-anchor="middle" font-size="9.5" fill="#553c9a">Encoding sẵn sàng cho Pi sử dụng</text>
+    <line x1="275" y1="564" x2="275" y2="584" stroke="#555" stroke-width="1.5" marker-end="url(#arr2)"/>
+
+    <!-- End -->
+    <circle cx="275" cy="600" r="13" fill="#1a202c"/>
+    <circle cx="275" cy="600" r="19" fill="none" stroke="#1a202c" stroke-width="3"/>
+
+  </svg>
+  </div>
+</div>
+
+<!-- Legend -->
+<div class="legend">
+  <h3>Chú thích (Legend)</h3>
+  <div class="leg">
+    <div class="leg-box" style="background:#fff5f5;border:2px solid #f56565;border-radius:10px;"></div>
+    Hoạt động Raspberry Pi 4
+  </div>
+  <div class="leg">
+    <div class="leg-box" style="background:#eff6ff;border:2px solid #4299e1;border-radius:10px;"></div>
+    Hoạt động Laravel Server
+  </div>
+  <div class="leg">
+    <div class="leg-box" style="background:#faf5ff;border:2px solid #805ad5;border-radius:10px;"></div>
+    Hoạt động Admin (Web)
+  </div>
+  <div class="leg">
+    <div class="leg-box" style="background:#f0fff4;border:2px solid #38a169;border-radius:10px;"></div>
+    Hoạt động Python Script
+  </div>
+  <div class="leg">
+    <svg width="35" height="18"><circle cx="9" cy="9" r="9" fill="#1a202c"/></svg>
+    Điểm bắt đầu (Initial node)
+  </div>
+  <div class="leg">
+    <svg width="35" height="18">
+      <circle cx="9" cy="9" r="8" fill="#1a202c"/>
+      <circle cx="9" cy="9" r="13" fill="none" stroke="#1a202c" stroke-width="2.5"/>
+    </svg>
+    Điểm kết thúc (Final node)
+  </div>
+  <div class="leg">
+    <svg width="35" height="18">
+      <circle cx="9" cy="9" r="9" fill="white" stroke="#1a202c" stroke-width="2"/>
+      <text x="9" y="13" text-anchor="middle" font-size="9" font-weight="900" fill="#1a202c" font-family="Arial">A</text>
+    </svg>
+    Connector — điểm nối vòng lặp
+  </div>
+  <div class="leg">
+    <div class="leg-dash"></div>
+    Luồng giao tiếp API (cross-lane)
+  </div>
+  <div class="leg">
+    <svg width="35" height="18">
+      <polygon points="9,0 28,9 9,18 0,9" fill="white" stroke="#f56565" stroke-width="1.5"/>
+    </svg>
+    Điểm quyết định (Decision)
+  </div>
+</div>
+
+</body>
+</html>

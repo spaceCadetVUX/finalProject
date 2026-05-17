@@ -1,302 +1,331 @@
-# Đề Xuất Tổng Quan Hệ Thống Điểm Danh Bằng Nhận Diện Khuôn Mặt
+<div align="center">
 
-> **Đề tài:** Hệ thống điểm danh tự động sử dụng Raspberry Pi 4 và camera nhận diện khuôn mặt, tích hợp giao diện web quản lý.
+# Face Recognition Attendance System
+
+**Automated employee attendance tracking powered by deep learning and IoT**
+
+[![Laravel](https://img.shields.io/badge/Laravel-13.x-FF2D20?style=for-the-badge&logo=laravel&logoColor=white)](https://laravel.com)
+[![PHP](https://img.shields.io/badge/PHP-8.3+-777BB4?style=for-the-badge&logo=php&logoColor=white)](https://php.net)
+[![Python](https://img.shields.io/badge/Python-3.9+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
+[![TailwindCSS](https://img.shields.io/badge/TailwindCSS-3.x-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
+[![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1?style=for-the-badge&logo=mysql&logoColor=white)](https://mysql.com)
+[![Raspberry Pi](https://img.shields.io/badge/Raspberry_Pi-4B-A22846?style=for-the-badge&logo=raspberrypi&logoColor=white)](https://raspberrypi.org)
+[![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
+
+*A full-stack attendance management system that combines a Raspberry Pi 4 edge device running real-time face recognition with a Laravel web dashboard for administration, reporting, and shift management.*
+
+</div>
 
 ---
 
-## 1. Mục Tiêu Hệ Thống
+## Table of Contents
 
-- Tự động nhận diện khuôn mặt và ghi nhận điểm danh theo thời gian thực
-- Cung cấp giao diện web để quản lý người dùng, lớp học, và dữ liệu điểm danh
-- Hỗ trợ báo cáo thống kê, xuất dữ liệu và phân quyền người dùng
-- Đảm bảo hệ thống hoạt động ổn định, bảo mật và có khả năng mở rộng
+- [Overview](#overview)
+- [Key Features](#key-features)
+- [System Architecture](#system-architecture)
+- [Tech Stack](#tech-stack)
+- [How It Works](#how-it-works)
+- [Getting Started](#getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Web Dashboard Setup](#web-dashboard-setup)
+  - [Raspberry Pi Setup](#raspberry-pi-setup)
+- [API Reference](#api-reference)
+- [Project Structure](#project-structure)
+- [Screenshots](#screenshots)
+- [License](#license)
 
 ---
 
-## 2. Kiến Trúc Tổng Quan
+## Overview
+
+Traditional attendance methods — sign-in sheets, swipe cards, manual entry — are slow, error-prone, and easy to abuse. This system replaces them entirely.
+
+A **Raspberry Pi 4** mounted at the entrance runs a Python program that captures live camera frames, detects faces using a **HOG + SVM detector**, encodes them into **128-dimensional embeddings** via a **ResNet-34 deep neural network** (dlib), and matches against registered employees in under 400 ms. Check-in and check-out events are sent to the **Laravel REST API** in real time. When the network is unavailable, records are buffered in a local **SQLite** database and synced automatically when connectivity is restored.
+
+The **Laravel dashboard** gives administrators full control: manage employees, departments, shift templates, shift schedules, and devices — all with live statistics updating every 10 seconds.
+
+---
+
+## Key Features
+
+### Edge Device (Raspberry Pi 4)
+- **Real-time face detection** using HOG descriptor + SVM sliding-window classifier
+- **Face encoding** via dlib's ResNet-34 model — 128-D L2-normalized embedding per face
+- **Automatic check-in / check-out** disambiguation based on active shift schedule
+- **5-minute cooldown** per employee to prevent duplicate records
+- **Offline-first**: buffers attendance records to local SQLite when network is down; auto-syncs on reconnect
+- **Delta sync**: only downloads new/updated face encodings since last sync — saves bandwidth
+
+### Web Dashboard (Laravel)
+- **Role-based access control** — Super Admin / Admin / Manager, enforced at middleware level
+- **Employee management** with face registration: upload photo → background Queue Job extracts 128-D encoding via Python script
+- **Department management** — assign managers, configure descriptions
+- **Shift template & schedule system** — define shift times, assign to employees or whole departments, with conflict detection
+- **Live dashboard** — attendance counts, 7-day chart, recent check-ins, device status — auto-refreshes every 10 seconds
+- **Manual attendance override** — Admins and Managers can add or edit records with notes
+- **Export to Excel (.xlsx) and PDF** — filterable by department, employee, and date range
+- **Device registry** — register Pi devices, issue/revoke API tokens, monitor online/offline via heartbeat
+
+---
+
+## System Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                        CLIENT LAYER                         │
-│          Browser (Admin / Giáo viên / Học sinh)             │
-└────────────────────────┬────────────────────────────────────┘
-                         │ HTTP / WebSocket
-┌────────────────────────▼────────────────────────────────────┐
-│                      WEB APPLICATION                        │
-│                  Laravel (PHP Framework)                    │
-│   - REST API          - Blade Views         - Auth/ACL      │
-│   - Queue Jobs        - WebSocket Server    - File Upload   │
-└────────┬──────────────────────────────┬─────────────────────┘
-         │ Eloquent ORM                 │ REST API (JSON)
-┌────────▼───────────┐       ┌──────────▼───────────────────┐
-│    MySQL Database  │       │      Raspberry Pi 4           │
-│  - users           │       │  Python + OpenCV              │
-│  - attendances     │       │  face_recognition library     │
-│  - classes         │       │  Camera Module v2             │
-│  - sessions        │       │  Auto-sync khi có mạng        │
-│  - face_encodings  │       └──────────────────────────────┘
-└────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│                          CLIENT LAYER                            │
+│              Browser  (Admin / Manager / Employee)               │
+└───────────────────────────┬──────────────────────────────────────┘
+                            │  HTTPS
+┌───────────────────────────▼──────────────────────────────────────┐
+│                      WEB APPLICATION                             │
+│                   Laravel 13  (PHP 8.3+)                         │
+│                                                                  │
+│   Blade + Alpine.js + TailwindCSS        REST API (Sanctum)      │
+│   Queue Worker (face encoding jobs)      Device heartbeat        │
+└────────────┬─────────────────────────────────────┬───────────────┘
+             │ Eloquent ORM                         │ JSON over HTTPS
+┌────────────▼───────────┐           ┌─────────────▼──────────────┐
+│    MySQL 8.0           │           │      Raspberry Pi 4         │
+│                        │           │                             │
+│  users                 │           │  Python 3.9+                │
+│  departments           │           │  face_recognition (dlib)    │
+│  shift_templates       │           │  OpenCV  ·  NumPy           │
+│  shift_schedules       │           │  Camera Module / USB Cam    │
+│  attendances           │           │  SQLite  (offline buffer)   │
+│  devices               │           │  Auto-sync on reconnect     │
+│  face_encodings        │           └─────────────────────────────┘
+└────────────────────────┘
 ```
 
 ---
 
-## 3. Stack Công Nghệ
+## Tech Stack
 
-### 3.1 Backend (Web Server)
-
-| Thành phần | Công nghệ | Lý do chọn |
+| Layer | Technology | Purpose |
 |---|---|---|
-| Framework | Laravel 11 | Ecosystem phong phú, có Breeze/Sanctum sẵn |
-| Ngôn ngữ | PHP 8.2+ | Hỗ trợ tốt các tính năng OOP hiện đại |
-| Database | MySQL 8.0 | Ổn định, dễ quản lý, phù hợp dữ liệu quan hệ |
-| Queue | Laravel Queue (database driver) | Xử lý tác vụ nền — không cần Redis cho basic |
-| Real-time | Polling mỗi 10 giây | Đủ dùng cho ~50 người, không cần WebSocket |
-| Auth Web | Laravel Breeze | Có sẵn login/register, đơn giản |
-| Auth API (Pi) | Laravel Sanctum (token) | Token-based cho thiết bị Pi |
-| Storage | Laravel Storage (local) | Lưu ảnh khuôn mặt trên server |
-
-### 3.2 Frontend (Giao diện Web)
-
-| Thành phần | Công nghệ |
-|---|---|
-| Template engine | Blade (Laravel) |
-| CSS Framework | TailwindCSS |
-| JS Framework | Alpine.js |
-| Charts | Chart.js |
-| DataTable | DataTables.js |
-| Icons | Heroicons |
-
-### 3.3 Raspberry Pi 4 (Edge Device)
-
-| Thành phần | Công nghệ |
-|---|---|
-| Ngôn ngữ | Python 3.9+ |
-| Nhận diện khuôn mặt | `face_recognition` (dlib) + OpenCV |
-| Camera | Raspberry Pi Camera Module v2 / USB Camera |
-| Giao tiếp server | `requests` (HTTP POST lên Laravel API) |
-| Lưu trữ cục bộ | SQLite (offline buffer khi mất mạng) |
-| Màn hình (tuỳ chọn) | HDMI display hiển thị kết quả nhận diện |
+| **Web Framework** | Laravel 13 (PHP 8.3+) | MVC, REST API, Queue, Auth |
+| **Frontend** | Blade · TailwindCSS 3 · Alpine.js 3 | UI templates and interactivity |
+| **Build Tool** | Vite 8 | Asset bundling and HMR |
+| **Charts** | Chart.js | 7-day attendance chart |
+| **Tables** | DataTables.js | Paginated, sortable data tables |
+| **API Auth** | Laravel Sanctum | Token-based auth for Pi devices |
+| **Web Auth** | Laravel Breeze | Session-based login for web users |
+| **Primary DB** | MySQL 8.0 | All relational data |
+| **Edge DB** | SQLite | Offline attendance buffer on Pi |
+| **Face Detection** | dlib HOG + SVM | Real-time face localization |
+| **Face Encoding** | dlib ResNet-34 (128-D) | Deep face embeddings |
+| **Image Processing** | OpenCV 4.9 | Camera capture and frame preprocessing |
+| **Matching** | Euclidean distance (NumPy) | Identity lookup against known encodings |
+| **Excel Export** | PhpSpreadsheet 2.0 | .xlsx report generation |
+| **PDF Export** | DomPDF 3.1 | PDF report generation |
+| **Hardware** | Raspberry Pi 4 Model B | Edge inference device |
 
 ---
 
-## 4. Các Module Chức Năng
+## How It Works
 
-### 4.1 Dashboard (Trang Tổng Quan)
-- Thống kê tổng số nhân viên, số phòng ban, số lượt chấm công trong ngày
-- Biểu đồ chấm công theo tuần/tháng
-- Danh sách check-in/check-out gần đây (real-time)
-- Cảnh báo: thiết bị Pi offline, nhân viên chưa check-in, tỉ lệ vắng cao
+### Face Recognition Pipeline
 
-### 4.2 Quản Lý Nhân Viên
-- **CRUD:** Thêm, sửa, xóa nhân viên (soft delete — không mất dữ liệu chấm công)
-- **Upload ảnh khuôn mặt:** Tải lên ảnh qua web, server tự mã hóa face encoding
-- **Import từ Excel/CSV:** Nhập hàng loạt
-- **Tìm kiếm & lọc:** Theo tên, mã nhân viên, phòng ban, trạng thái
+```
+Camera frame (1280×720)
+        │
+        ▼ Downscale to 1/4 · BGR → RGB  (OpenCV)
+        │
+        ▼ HOG feature extraction + SVM sliding window  (dlib)
+        │   └─ Non-Maximum Suppression → bounding boxes
+        │
+        ▼ 68-landmark alignment → Affine transform → 150×150 crop  (dlib)
+        │
+        ▼ ResNet-34 forward pass → 128-D L2-normalized embedding  (dlib)
+        │
+        ▼ Euclidean distance vs. all registered embeddings  (NumPy)
+        │   └─ best_distance < 0.5  →  identity confirmed
+        │
+        ▼ Cooldown check (5 min per employee)
+        │
+        ▼ POST /api/attendance  (online)  or  SQLite buffer  (offline)
+```
 
-### 4.3 Quản Lý Phòng Ban
-- Tạo, sửa, xóa phòng ban
-- Gán nhân viên vào phòng ban (mỗi nhân viên thuộc 1 phòng ban)
-- Thiết lập giờ làm việc riêng: giờ vào (`check_in_time`), giờ ra (`check_out_time`), biên độ trễ (`late_tolerance` phút)
-- Gán quản lý phòng ban
+### Check-in / Check-out Status Logic
 
-### 4.4 Chấm Công & Lịch Sử
-- Xem lịch sử theo ngày, tuần, tháng
-- Lọc theo: nhân viên, phòng ban, trạng thái (đúng giờ / trễ / về sớm / vắng / nghỉ phép)
-- Xem chi tiết: giờ check-in, giờ check-out, độ chính xác nhận diện, ảnh chụp
-- Override thủ công: Admin/Manager sửa trạng thái, ghi chú lý do
-- Xuất dữ liệu: Excel, PDF, CSV
+The server determines attendance status based on a **Shift → Department → None** priority chain:
 
-### 4.5 Báo Cáo & Thống Kê
-- Tỉ lệ chấm công theo từng nhân viên / phòng ban / khoảng thời gian
-- Xếp hạng tỉ lệ vắng mặt, đi trễ
-- Báo cáo tổng kết tháng
-- Gửi báo cáo qua email tự động (Queue)
+```
+Active shift assigned?
+  YES → compare check_in_at with shift.check_in_time + late_tolerance
+  NO  → fall back to department defaults
+        → if none: mark as present (no penalty)
+```
 
-### 4.6 Quản Lý Thiết Bị Pi
-- Thông tin thiết bị (tên, vị trí)
-- Trạng thái online/offline (heartbeat API)
-- Log nhận diện từ thiết bị
-- Đồng bộ face encodings xuống Pi (delta sync theo `updated_since`)
-
-### 4.7 Phân Quyền (Role & Permission)
-| Role | Quyền |
-|---|---|
-| Super Admin | Toàn quyền hệ thống |
-| Admin (HR) | Quản lý nhân viên, phòng ban, thiết bị, xem tất cả chấm công |
-| Manager | Xem & override chấm công phòng ban của mình |
-| Employee | Xem lịch sử chấm công cá nhân |
+Status values: `present` · `late` · `early_leave` · `absent` · `leave`
 
 ---
 
-## 5. Luồng Hoạt Động Chính
+## Getting Started
 
-### 5.1 Luồng Check-in / Check-out Tự Động
+### Prerequisites
 
-```
-[Camera Pi4] → Chụp frame liên tục (resize 1/4 để tăng tốc)
-      ↓
-[Python] → Phát hiện khuôn mặt (face_detection)
-      ↓
-[Python] → So sánh face encoding với danh sách cục bộ
-      ↓
-[Nhận diện thành công, confidence ≥ 85%]
-      ↓
-[Python] → Kiểm tra cooldown: cùng user_id không ghi 2 lần trong 5 phút
-      ↓
-[Python] → POST /api/attendance với {user_id, type (check_in|check_out), confidence, image}
-      ↓
-[Laravel API] → Xác thực token Pi → Xác định trạng thái (đúng giờ/trễ/về sớm)
-               dựa vào giờ làm việc của phòng ban → Lưu DB → Broadcast WebSocket
-      ↓
-[Web Client] → Cập nhật real-time không cần refresh
-```
+- PHP 8.3+, Composer
+- Node.js 20+ and npm
+- MySQL 8.0
+- Python 3.9+ (on the Raspberry Pi)
+- A Raspberry Pi 4 with a camera module (USB or CSI)
 
-### 5.2 Luồng Thêm Nhân Viên Kèm Ảnh
+---
 
-```
-[Admin Web] → Upload ảnh khuôn mặt
-      ↓
-[Laravel] → Lưu ảnh → Dispatch Queue Job (không block request)
-      ↓
-[Queue Worker] → Gọi Python script mã hóa face encoding
-      ↓
-[Python script] → Trả về encoding vector (128 chiều)
-      ↓
-[Laravel] → Lưu encoding vào DB
-      ↓
-[Pi lần sau GET /api/encodings?updated_since=...] → Tải xuống encoding mới
+### Web Dashboard Setup
+
+```bash
+# 1. Clone the repository
+git clone <repo-url>
+cd finalProject/laravel/dashboard
+
+# 2. Install PHP dependencies
+composer install
+
+# 3. Install Node dependencies and build assets
+npm install && npm run build
+
+# 4. Configure environment
+cp .env.example .env
+php artisan key:generate
 ```
 
-### 5.3 Luồng Offline (Mất kết nối mạng)
+Edit `.env` with your database credentials:
 
+```env
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=attendance_db
+DB_USERNAME=root
+DB_PASSWORD=your_password
 ```
-[Pi4 mất mạng] → Tiếp tục nhận diện bình thường
-      ↓
-[Python] → Lưu kết quả vào SQLite local
-      ↓
-[Khi có mạng trở lại] → POST /api/attendance/batch
-      ↓
-[Laravel] → Xử lý duplicate theo (user_id + work_date + type), lưu DB, cập nhật UI
+
+```bash
+# 5. Run migrations and seed demo data
+php artisan migrate --seed
+
+# 6. Start the development server
+php artisan serve
+
+# 7. (Optional) Start the queue worker for face encoding jobs
+php artisan queue:work
+```
+
+Visit `http://localhost:8000` — default Super Admin credentials are set in `DatabaseSeeder`.
+
+---
+
+### Raspberry Pi Setup
+
+```bash
+# 1. Navigate to the Pi source directory
+cd finalProject/pi4
+
+# 2. Create and activate a virtual environment
+python3 -m venv venv
+source venv/bin/activate
+
+# 3. Install dependencies
+# Note: dlib compilation requires cmake and a C++ compiler
+pip install -r requirements.txt
+
+# 4. Configure environment
+cp .env.example .env
+```
+
+Edit `.env` on the Pi:
+
+```env
+API_BASE_URL=http://<your-server-ip>/api
+DEVICE_TOKEN=<token-from-dashboard>
+CAMERA_INDEX=0
+TOLERANCE=0.5
+COOLDOWN_SECONDS=300
+```
+
+```bash
+# 5. Run the attendance client
+python main.py
+
+# Or use the startup script (runs on boot)
+chmod +x start.sh && ./start.sh
 ```
 
 ---
 
-## 6. Thiết Kế Cơ Sở Dữ Liệu (Sơ lược)
+## API Reference
 
-```
-users            → id, name, email, code, password, role, department_id (FK),
-                   avatar, created_at, updated_at, deleted_at
+All Pi-facing endpoints are prefixed with `/api` and require a `Bearer` token.
 
-departments      → id, name, description, manager_id (FK → users),
-                   check_in_time, check_out_time, late_tolerance (phút),
-                   created_at, updated_at
-
-face_encodings   → id, user_id (FK), encoding (JSON), image_path, created_at
-
-attendances      → id, user_id (FK), device_id (FK), work_date,
-                   check_in_at, check_in_confidence, check_in_image,
-                   check_out_at, check_out_confidence, check_out_image,
-                   status (present|late|early_leave|absent|leave),
-                   note, created_at, updated_at
-
-devices          → id, name, location, token, last_ping,
-                   status (online|offline), created_at, updated_at
-```
-
-**Lưu ý thiết kế:**
-- `users.deleted_at`: soft delete — xóa nhân viên không mất lịch sử chấm công
-- `departments.check_in_time / check_out_time`: mỗi phòng ban có giờ làm riêng
-- `departments.late_tolerance`: biên độ trễ (ví dụ 15 phút), server tự tính status
-- `attendances.work_date`: unique per (user_id, work_date) — 1 nhân viên 1 bản ghi/ngày
-- `attendances` có cả check-in và check-out trong cùng 1 record
-
----
-
-## 7. API Endpoints (Pi4 ↔ Laravel)
-
-| Method | Endpoint | Mô tả |
+| Method | Endpoint | Description |
 |---|---|---|
-| POST | `/api/auth/device` | Pi đăng nhập lấy token |
-| GET | `/api/encodings?updated_since={timestamp}` | Pi tải face encodings mới (delta sync) |
-| POST | `/api/attendance` | Pi gửi 1 lượt check-in hoặc check-out |
-| POST | `/api/device/ping` | Heartbeat kiểm tra online |
-| POST | `/api/attendance/batch` | Sync hàng loạt khi offline |
+| `POST` | `/api/auth/device` | Device login — exchange token for device info |
+| `GET` | `/api/encodings` | Fetch all face encodings |
+| `GET` | `/api/encodings?updated_since={ts}` | Delta sync — only encodings newer than timestamp |
+| `POST` | `/api/attendance` | Submit a single check-in or check-out event |
+| `POST` | `/api/attendance/batch` | Bulk sync offline-buffered records |
+| `POST` | `/api/device/ping` | Heartbeat — marks device as online |
 
-**Body của `POST /api/attendance`:**
+**Attendance payload:**
+
 ```json
 {
   "user_id": 5,
   "type": "check_in",
   "confidence": 0.92,
-  "image": "<base64>",
+  "image": "<base64-encoded-jpeg>",
   "recorded_at": "2025-05-03T08:05:00"
 }
 ```
 
 ---
 
-## 8. Bảo Mật
+## Project Structure
 
-- **API Authentication:** Laravel Sanctum (token-based cho Pi)
-- **Web Authentication:** Laravel Auth + Session
-- **HTTPS:** Bắt buộc trên môi trường production (VPS + SSL)
-- **Rate Limiting:** Giới hạn request từ Pi tránh spam
-- **Input Validation:** Validate toàn bộ dữ liệu đầu vào
-- **Image Upload:** Kiểm tra định dạng, giới hạn kích thước, lưu ngoài public dir
-
----
-
-## 9. Môi Trường Triển Khai
-
-### Development
-- Local machine + Laravel Sail (Docker)
-- Pi4 kết nối qua mạng LAN
-
-### Production
-- **VPS:** Ubuntu 22.04, Nginx, PHP-FPM, MySQL, Redis
-- **Domain:** HTTPS với Let's Encrypt
-- **Pi4:** Kết nối qua IP tĩnh hoặc DDNS
-
----
-
-## 10. Kế Hoạch Phát Triển Theo Giai Đoạn
-
-| Giai đoạn | Nội dung | Thời gian dự kiến |
-|---|---|---|
-| Phase 1 | Thiết kế DB, Auth, CRUD người dùng, upload ảnh | Tuần 1-2 |
-| Phase 2 | API cho Pi4, module điểm danh, real-time | Tuần 3-4 |
-| Phase 3 | Báo cáo, thống kê, export Excel/PDF | Tuần 5 |
-| Phase 4 | Phân quyền, quản lý thiết bị, UI hoàn thiện | Tuần 6 |
-| Phase 5 | Testing, deploy VPS, viết tài liệu | Tuần 7-8 |
+```
+finalProject/
+├── laravel/
+│   └── dashboard/               # Laravel web application
+│       ├── app/
+│       │   ├── Http/Controllers/
+│       │   │   ├── Api/         # Pi-facing REST API controllers
+│       │   │   └── Web/         # Browser-facing controllers
+│       │   ├── Models/          # Eloquent models
+│       │   └── Services/        # AttendanceStatusService, ShiftConflictService
+│       ├── database/
+│       │   ├── migrations/      # Schema definitions
+│       │   └── seeders/         # Demo data
+│       └── resources/views/     # Blade templates
+│
+├── pi4/                         # Raspberry Pi edge client
+│   ├── main.py                  # Entry point — main recognition loop
+│   ├── face_recognizer.py       # HOG detection + ResNet-34 encoding + matching
+│   ├── camera.py                # OpenCV camera wrapper
+│   ├── api_client.py            # HTTP communication with Laravel API
+│   ├── local_storage.py         # SQLite offline buffer
+│   ├── sync_manager.py          # Offline → online sync logic
+│   └── config.py                # Environment config loader
+│
+├── diagram/                     # Architecture and UML diagrams
+└── Report/                      # Project report documents
+```
 
 ---
 
-## 11. Các Rủi Ro & Giải Pháp
+## Screenshots
 
-| Rủi ro | Giải pháp |
-|---|---|
-| Ánh sáng kém ảnh hưởng nhận diện | Cải thiện lighting, dùng IR camera |
-| Pi4 mất mạng | Offline buffer với SQLite |
-| Nhận diện nhầm (false positive) | Đặt ngưỡng confidence tối thiểu (ví dụ ≥ 85%) |
-| Dữ liệu ảnh lớn | Nén ảnh, chỉ lưu thumbnail + encoding vector |
-| Hiệu năng Pi4 thấp | Giảm độ phân giải frame, dùng `face_recognition` với model `small` |
+> *(Add screenshots of the Dashboard, Employee Management, Shift Schedule, and Pi terminal output here)*
 
 ---
 
-*Tài liệu này là cơ sở để triển khai từng phần theo yêu cầu. Các mục có thể điều chỉnh theo tiến độ và phản hồi thực tế.*
+## License
 
-## SƠ ĐỒ CHỨC NĂNG
-![alt text](diagram/sodochucnang1.png)
-![alt text](diagram/sodochucnag2.png)
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
 
-## SƠ ĐỒ USECASE
-![alt text](diagram/usecase.png)
+---
 
-##  SEQUENCE
-![alt text](diagram/sequence_diagram_diem_danh.svg)
-
-##  activity
-![alt text](diagram/activity_diagram_diem_danh.svg)
-
-##  CLASS
-![alt text](diagram/class_diagram.svg)
+<div align="center">
+  Built with Laravel · dlib · OpenCV · Raspberry Pi 4
+</div>
